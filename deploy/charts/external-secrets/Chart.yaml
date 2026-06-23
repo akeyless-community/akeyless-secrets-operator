@@ -1,0 +1,21 @@
+apiVersion: v2
+name: akeyless-secrets-operator
+description: Sync secrets from Akeyless into Kubernetes
+type: application
+version: "0.1.0"
+appVersion: "v0.1.0"
+kubeVersion: ">= 1.19.0-0"
+keywords:
+  - akeyless
+  - kubernetes-external-secrets
+  - secrets
+home: https://github.com/akeyless-community/akeyless-secrets-operator
+icon: https://raw.githubusercontent.com/external-secrets/external-secrets/main/assets/eso-logo-large.png
+maintainers:
+  - name: akeyless-community
+    url: https://github.com/akeyless-community
+dependencies:
+  - name: bitwarden-sdk-server
+    version: v0.6.0
+    repository: oci://ghcr.io/external-secrets/charts
+    condition: bitwarden-sdk-server.enabled
