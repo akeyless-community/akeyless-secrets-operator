@@ -12,7 +12,28 @@ This project is a focused fork of [External Secrets Operator](https://github.com
 
 ## Compatibility
 
-CRDs and API group remain `external-secrets.io/v1` for now, so existing `ExternalSecret`, `SecretStore`, and `ClusterSecretStore` manifests from ESO's Akeyless provider continue to work.
+**Use the Akeyless-owned CRDs** under API group `secrets.akeyless.io/v1alpha1`:
+
+| Legacy (ESO) | Akeyless operator |
+|--------------|-------------------|
+| `SecretStore` | `AkeylessSecretStore` |
+| `ClusterSecretStore` | `ClusterAkeylessSecretStore` |
+| `ExternalSecret` | `AkeylessSecret` |
+
+Legacy `external-secrets.io` reconciliation is **disabled by default**. Enable with `--enable-legacy-external-secrets-reconciler=true` if needed during migration.
+
+See [docs/examples/akeyless-secret.yaml](docs/examples/akeyless-secret.yaml).
+
+## Sync policies
+
+`AkeylessSecret.spec.syncPolicy` controls when Kubernetes Secrets are updated:
+
+| Policy | Behavior |
+|--------|----------|
+| `OnRemoteChange` (default) | Polls Akeyless `last_version` on `syncInterval`; full sync only when a remote item changes |
+| `Periodic` | Sync on a fixed interval |
+| `OnSpecChange` | Sync when the CR spec/metadata changes |
+| `CreatedOnce` | Create once, never update values |
 
 ## Akeyless features included
 
@@ -29,35 +50,33 @@ See [docs/provider/akeyless.md](docs/provider/akeyless.md) for configuration exa
 ## Quick start
 
 ```yaml
-apiVersion: external-secrets.io/v1
-kind: SecretStore
+apiVersion: secrets.akeyless.io/v1alpha1
+kind: AkeylessSecretStore
 metadata:
   name: akeyless
 spec:
-  provider:
-    akeyless:
-      akeylessGWApiURL: "https://api.akeyless.io"
-      authSecretRef:
-        secretRef:
-          accessID:
-            name: akeyless-creds
-            key: accessId
-          accessType:
-            name: akeyless-creds
-            key: accessType
-          accessTypeParam:
-            name: akeyless-creds
-            key: accessTypeParam
+  akeylessGWApiURL: "https://api.akeyless.io"
+  auth:
+    secretRef:
+      accessID:
+        name: akeyless-creds
+        key: accessId
+      accessType:
+        name: akeyless-creds
+        key: accessType
+      accessTypeParam:
+        name: akeyless-creds
+        key: accessTypeParam
 ---
-apiVersion: external-secrets.io/v1
-kind: ExternalSecret
+apiVersion: secrets.akeyless.io/v1alpha1
+kind: AkeylessSecret
 metadata:
   name: app-secret
 spec:
-  refreshInterval: 1h
-  secretStoreRef:
+  syncPolicy: OnRemoteChange
+  syncInterval: 5m
+  storeRef:
     name: akeyless
-    kind: SecretStore
   target:
     name: app-secret
   data:
@@ -73,6 +92,12 @@ make build          # builds with -tags akeyless (default)
 make test           # unit tests
 make reviewable     # full PR gate (generate, lint, tests, CRD snapshots)
 ```
+
+## Container image
+
+See [docs/image-publishing.md](docs/image-publishing.md) for building, pushing to a personal registry, migrating to `ghcr.io/akeyless-community/akeyless-secrets-operator`, and which files to update when the image coordinates change.
+
+Manual cluster test manifests: [hack/test/barak/README.md](hack/test/barak/README.md).
 
 ## Origin & license
 

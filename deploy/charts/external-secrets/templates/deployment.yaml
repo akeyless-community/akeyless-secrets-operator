@@ -100,6 +100,28 @@ spec:
           {{- if not .Values.processSecretStore }}
           - --enable-secret-store-reconciler=false
           {{- end }}
+          {{- if not .Values.processAkeylessSecret }}
+          - --enable-akeyless-secret-reconciler=false
+          {{- end }}
+          {{- if not .Values.processAkeylessDynamicSecret }}
+          - --enable-akeyless-dynamic-secret-reconciler=false
+          {{- end }}
+          {{- if not .Values.processAkeylessSecretStore }}
+          - --enable-akeyless-secret-store-reconciler=false
+          {{- end }}
+          {{- if .Values.akeylessWebhook.enabled }}
+          - --akeyless-webhook-addr=:{{ .Values.akeylessWebhook.port }}
+          - --akeyless-webhook-path={{ .Values.akeylessWebhook.path }}
+          {{- if .Values.akeylessWebhook.token }}
+          - --akeyless-webhook-token={{ .Values.akeylessWebhook.token }}
+          {{- end }}
+          {{- end }}
+          {{- if not .Values.processClusterAkeylessSecretStore }}
+          - --enable-cluster-akeyless-secret-store-reconciler=false
+          {{- end }}
+          {{- if .Values.processLegacyExternalSecret }}
+          - --enable-legacy-external-secrets-reconciler=true
+          {{- end }}
           {{- if .Values.storeRequeueInterval }}
           - --store-requeue-interval={{ .Values.storeRequeueInterval }}
           {{- end }}
@@ -162,6 +184,11 @@ spec:
               {{- else }}
               containerPort: {{ .Values.livenessProbe.spec.httpGet.port }}
               {{- end }}
+            {{- end }}
+            {{- if .Values.akeylessWebhook.enabled }}
+            - name: akeyless-webhook
+              protocol: TCP
+              containerPort: {{ .Values.akeylessWebhook.port }}
             {{- end }}
           {{- if .Values.livenessProbe.enabled }}
           livenessProbe:

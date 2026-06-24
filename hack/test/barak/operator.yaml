@@ -1,0 +1,109 @@
+# Manual test manifests for CS-AKS1 / namespace barak
+#
+# Image: docker.io/barakdmax/akeyless-secrets-operator:dev-test
+# When publishing to the official registry, update the image line below.
+# See docs/image-publishing.md for the full list of files to change.
+#
+# 1. Push image (see docs/image-publishing.md)
+# 2. Create akeyless creds secret (see akeyless-creds-secret.example.yaml)
+# 3. kubectl apply -f hack/test/barak/
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: akeyless-secrets-operator
+  namespace: barak
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: akeyless-secrets-operator
+  namespace: barak
+rules:
+  - apiGroups: ["secrets.akeyless.io"]
+    resources: ["akeylesssecrets", "akeylessdynamicsecrets", "akeylesssecretstores"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["secrets.akeyless.io"]
+    resources: ["akeylesssecrets", "akeylesssecrets/status", "akeylessdynamicsecrets", "akeylessdynamicsecrets/status", "akeylesssecretstores", "akeylesssecretstores/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets", "configmaps", "serviceaccounts", "events"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: akeyless-secrets-operator
+  namespace: barak
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: akeyless-secrets-operator
+subjects:
+  - kind: ServiceAccount
+    name: akeyless-secrets-operator
+    namespace: barak
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: akeyless-secrets-operator-webhook
+  namespace: barak
+spec:
+  selector:
+    app: akeyless-secrets-operator
+  ports:
+    - name: webhook
+      port: 8083
+      targetPort: 8083
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: akeyless-secrets-operator
+  namespace: barak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: akeyless-secrets-operator
+  template:
+    metadata:
+      labels:
+        app: akeyless-secrets-operator
+    spec:
+      serviceAccountName: akeyless-secrets-operator
+      imagePullSecrets:
+        - name: akeyless-docker-hub
+      containers:
+        - name: operator
+          image: docker.io/barakdmax/akeyless-secrets-operator:dev-test
+          imagePullPolicy: Always
+          args:
+            - --namespace=barak
+            - --enable-cluster-store-reconciler=false
+            - --enable-secret-store-reconciler=false
+            - --enable-cluster-external-secret-reconciler=false
+            - --enable-cluster-push-secret-reconciler=false
+            - --enable-push-secret-reconciler=false
+            - --enable-generator-state=false
+            - --enable-legacy-external-secrets-reconciler=false
+            - --enable-akeyless-secret-reconciler=true
+            - --enable-akeyless-dynamic-secret-reconciler=true
+            - --enable-akeyless-secret-store-reconciler=true
+            - --enable-cluster-akeyless-secret-store-reconciler=false
+            - --akeyless-webhook-addr=:8083
+            - --akeyless-webhook-path=/webhook/akeyless
+            - --akeyless-webhook-token=barak-test-webhook-token
+            - --loglevel=debug
+          ports:
+            - name: metrics
+              containerPort: 8080
+            - name: webhook
+              containerPort: 8083

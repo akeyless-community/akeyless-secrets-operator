@@ -35,9 +35,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	akeylessv1alpha1 "github.com/external-secrets/external-secrets/apis/akeyless/v1alpha1"
 	esv1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1"
 	esv1alpha1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1alpha1"
 	genv1alpha1 "github.com/external-secrets/external-secrets/apis/generators/v1alpha1"
+	"github.com/external-secrets/external-secrets/pkg/controllers/akeylessdynamicsecret"
+	"github.com/external-secrets/external-secrets/pkg/controllers/akeylesssecret"
+	"github.com/external-secrets/external-secrets/pkg/controllers/akeylessstore"
+	akeylesswebhook "github.com/external-secrets/external-secrets/pkg/akeyless/webhook"
 	"github.com/external-secrets/external-secrets/pkg/controllers/clusterexternalsecret"
 	"github.com/external-secrets/external-secrets/pkg/controllers/clusterexternalsecret/cesmetrics"
 	"github.com/external-secrets/external-secrets/pkg/controllers/clusterpushsecret"
@@ -105,6 +110,14 @@ var (
 	tlsMinVersion                         string
 	enableHTTP2                           bool
 	allowGenericTargets                   bool
+	enableAkeylessSecretReconciler        bool
+	enableAkeylessDynamicSecretReconciler bool
+	enableAkeylessSecretStoreReconciler   bool
+	enableClusterAkeylessStoreReconciler  bool
+	enableLegacyExternalSecretReconciler  bool
+	akeylessWebhookAddr                   string
+	akeylessWebhookToken                  string
+	akeylessWebhookPath                   string
 )
 
 const (
@@ -117,6 +130,7 @@ func init() {
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 
 	// external-secrets schemes
+	utilruntime.Must(akeylessv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(esv1.AddToScheme(scheme))
 	utilruntime.Must(esv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(genv1alpha1.AddToScheme(scheme))
@@ -236,31 +250,101 @@ var rootCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
-		if err = (&generatorstate.Reconciler{
-			Client:     mgr.GetClient(),
-			Log:        ctrl.Log.WithName("controllers").WithName("GeneratorState"),
-			Scheme:     mgr.GetScheme(),
-			RestConfig: mgr.GetConfig(),
-		}).SetupWithManager(mgr, ctrlcommon.BuildControllerOptions(concurrent)); err != nil {
-			setupLog.Error(err, errCreateController, "controller", "GeneratorState")
-			os.Exit(1)
+		if enableGeneratorState {
+			if err = (&generatorstate.Reconciler{
+				Client:     mgr.GetClient(),
+				Log:        ctrl.Log.WithName("controllers").WithName("GeneratorState"),
+				Scheme:     mgr.GetScheme(),
+				RestConfig: mgr.GetConfig(),
+			}).SetupWithManager(mgr, ctrlcommon.BuildControllerOptions(concurrent)); err != nil {
+				setupLog.Error(err, errCreateController, "controller", "GeneratorState")
+				os.Exit(1)
+			}
 		}
-		if err = (&externalsecret.Reconciler{
-			Client:                             mgr.GetClient(),
-			SecretClient:                       secretClient,
-			EnableSecretAPIReadOnCacheMismatch: enableSecretAPIReadOnCacheMismatch,
-			Log:                                ctrl.Log.WithName("controllers").WithName("ExternalSecret"),
-			Scheme:                             mgr.GetScheme(),
-			RestConfig:                         mgr.GetConfig(),
-			ControllerClass:                    controllerClass,
-			RequeueInterval:                    time.Hour,
-			ClusterSecretStoreEnabled:          enableClusterStoreReconciler,
-			EnableFloodGate:                    enableFloodGate,
-			EnableGeneratorState:               enableGeneratorState,
-			AllowGenericTargets:                allowGenericTargets,
-		}).SetupWithManager(cmd.Context(), mgr, ctrlcommon.BuildControllerOptions(concurrent)); err != nil {
-			setupLog.Error(err, errCreateController, "controller", "ExternalSecret")
-			os.Exit(1)
+		if enableLegacyExternalSecretReconciler {
+			if err = (&externalsecret.Reconciler{
+				Client:                             mgr.GetClient(),
+				SecretClient:                       secretClient,
+				EnableSecretAPIReadOnCacheMismatch: enableSecretAPIReadOnCacheMismatch,
+				Log:                                ctrl.Log.WithName("controllers").WithName("ExternalSecret"),
+				Scheme:                             mgr.GetScheme(),
+				RestConfig:                         mgr.GetConfig(),
+				ControllerClass:                    controllerClass,
+				RequeueInterval:                    time.Hour,
+				ClusterSecretStoreEnabled:          enableClusterStoreReconciler,
+				EnableFloodGate:                    enableFloodGate,
+				EnableGeneratorState:               enableGeneratorState,
+				AllowGenericTargets:                allowGenericTargets,
+			}).SetupWithManager(cmd.Context(), mgr, ctrlcommon.BuildControllerOptions(concurrent)); err != nil {
+				setupLog.Error(err, errCreateController, "controller", "ExternalSecret")
+				os.Exit(1)
+			}
+		}
+		if enableAkeylessSecretReconciler {
+			if err = (&akeylesssecret.Reconciler{
+				Client:   mgr.GetClient(),
+				Log:      ctrl.Log.WithName("controllers").WithName("AkeylessSecret"),
+				Scheme:   mgr.GetScheme(),
+				Recorder: mgr.GetEventRecorderFor("akeyless-secrets-controller"),
+			}).SetupWithManager(mgr, ctrlcommon.BuildControllerOptions(concurrent)); err != nil {
+				setupLog.Error(err, errCreateController, "controller", "AkeylessSecret")
+				os.Exit(1)
+			}
+		}
+		if enableAkeylessDynamicSecretReconciler {
+			if err = (&akeylessdynamicsecret.Reconciler{
+				Client:   mgr.GetClient(),
+				Log:      ctrl.Log.WithName("controllers").WithName("AkeylessDynamicSecret"),
+				Scheme:   mgr.GetScheme(),
+				Recorder: mgr.GetEventRecorderFor("akeyless-dynamic-secrets-controller"),
+			}).SetupWithManager(mgr, ctrlcommon.BuildControllerOptions(concurrent)); err != nil {
+				setupLog.Error(err, errCreateController, "controller", "AkeylessDynamicSecret")
+				os.Exit(1)
+			}
+		}
+		if akeylessWebhookAddr != "" {
+			if err = mgr.Add(&akeylesswebhook.Server{
+				Client: mgr.GetClient(),
+				Log:    ctrl.Log.WithName("akeyless-webhook"),
+				Addr:   akeylessWebhookAddr,
+				Token:  akeylessWebhookToken,
+				Path:   akeylessWebhookPath,
+			}); err != nil {
+				setupLog.Error(err, "unable to register Akeyless event webhook")
+				os.Exit(1)
+			}
+		}
+		if enableAkeylessSecretStoreReconciler {
+			requeue := storeRequeueInterval
+			if requeue == 0 {
+				requeue = 5 * time.Minute
+			}
+			if err = (&akeylessstore.StoreReconciler{
+				Client:          mgr.GetClient(),
+				Log:             ctrl.Log.WithName("controllers").WithName("AkeylessSecretStore"),
+				Scheme:          mgr.GetScheme(),
+				Recorder:        mgr.GetEventRecorderFor("akeyless-store-controller"),
+				RequeueInterval: requeue,
+			}).SetupWithManager(mgr, ctrlcommon.BuildControllerOptions(concurrent)); err != nil {
+				setupLog.Error(err, errCreateController, "controller", "AkeylessSecretStore")
+				os.Exit(1)
+			}
+		}
+		if enableClusterAkeylessStoreReconciler {
+			requeue := storeRequeueInterval
+			if requeue == 0 {
+				requeue = 5 * time.Minute
+			}
+			if err = (&akeylessstore.ClusterStoreReconciler{
+				Client:          mgr.GetClient(),
+				Log:             ctrl.Log.WithName("controllers").WithName("ClusterAkeylessSecretStore"),
+				Scheme:          mgr.GetScheme(),
+				Recorder:        mgr.GetEventRecorderFor("akeyless-cluster-store-controller"),
+				RequeueInterval: requeue,
+			}).SetupWithManager(mgr, ctrlcommon.BuildControllerOptions(concurrent)); err != nil {
+				setupLog.Error(err, errCreateController, "controller", "ClusterAkeylessSecretStore")
+				os.Exit(1)
+			}
 		}
 		if enablePushSecretReconciler {
 			psmetrics.SetUpMetrics()
@@ -377,6 +461,14 @@ func init() {
 		"If set, HTTP/2 will be enabled for the metrics server")
 	rootCmd.Flags().
 		BoolVar(&allowGenericTargets, "unsafe-allow-generic-targets", false, "Enable support for creating generic resources (ConfigMaps, Custom Resources). WARNING: Using generic resources, please sure all policies are correctly configured.")
+	rootCmd.Flags().BoolVar(&enableAkeylessSecretReconciler, "enable-akeyless-secret-reconciler", true, "Enable reconciliation of secrets.akeyless.io AkeylessSecret resources.")
+	rootCmd.Flags().BoolVar(&enableAkeylessDynamicSecretReconciler, "enable-akeyless-dynamic-secret-reconciler", true, "Enable reconciliation of secrets.akeyless.io AkeylessDynamicSecret resources.")
+	rootCmd.Flags().BoolVar(&enableAkeylessSecretStoreReconciler, "enable-akeyless-secret-store-reconciler", true, "Enable reconciliation of secrets.akeyless.io AkeylessSecretStore resources.")
+	rootCmd.Flags().BoolVar(&enableClusterAkeylessStoreReconciler, "enable-cluster-akeyless-secret-store-reconciler", true, "Enable reconciliation of secrets.akeyless.io ClusterAkeylessSecretStore resources.")
+	rootCmd.Flags().BoolVar(&enableLegacyExternalSecretReconciler, "enable-legacy-external-secrets-reconciler", false, "Enable legacy external-secrets.io ExternalSecret reconciliation.")
+	rootCmd.Flags().StringVar(&akeylessWebhookAddr, "akeyless-webhook-addr", "", "Listen address for Akeyless event webhooks (e.g. :8083). Empty disables the webhook server.")
+	rootCmd.Flags().StringVar(&akeylessWebhookToken, "akeyless-webhook-token", "", "Optional bearer token required on Akeyless event webhook requests.")
+	rootCmd.Flags().StringVar(&akeylessWebhookPath, "akeyless-webhook-path", "/webhook/akeyless", "HTTP path for Akeyless event webhooks.")
 	fs := feature.Features()
 	for _, f := range fs {
 		rootCmd.Flags().AddFlagSet(f.Flags)

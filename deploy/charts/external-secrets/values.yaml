@@ -43,7 +43,7 @@ bitwarden-sdk-server:
 revisionHistoryLimit: 10
 
 image:
-  repository: ghcr.io/external-secrets/external-secrets
+  repository: ghcr.io/akeyless-community/akeyless-secrets-operator
   pullPolicy: IfNotPresent
   # -- The image tag to use. The default is the chart appVersion.
   tag: ""
@@ -58,17 +58,22 @@ installCRDs: true
 
 crds:
   # -- If true, create CRDs for Cluster External Secret. If set to false you must also set processClusterExternalSecret: false.
-  createClusterExternalSecret: true
+  createClusterExternalSecret: false
   # -- If true, create CRDs for Cluster Secret Store. If set to false you must also set processClusterStore: false.
-  createClusterSecretStore: true
+  createClusterSecretStore: false
   # -- If true, create CRDs for Secret Store. If set to false you must also set processSecretStore: false.
-  createSecretStore: true
+  createSecretStore: false
   # -- If true, create CRDs for Cluster Generator. If set to false you must also set processClusterGenerator: false.
-  createClusterGenerator: true
+  createClusterGenerator: false
   # -- If true, create CRDs for Cluster Push Secret. If set to false you must also set processClusterPushSecret: false.
-  createClusterPushSecret: true
+  createClusterPushSecret: false
   # -- If true, create CRDs for Push Secret. If set to false you must also set processPushSecret: false.
-  createPushSecret: true
+  createPushSecret: false
+  # -- If true, create CRDs for Akeyless-owned API resources (secrets.akeyless.io).
+  createAkeylessSecret: true
+  createAkeylessDynamicSecret: true
+  createAkeylessSecretStore: true
+  createClusterAkeylessSecretStore: true
   annotations: {}
   conversion:
     # -- Conversion is disabled by default as we stopped supporting v1alpha1.
@@ -119,27 +124,51 @@ openshiftFinalizers: true
 systemAuthDelegator: false
 
 # -- if true, the operator will process cluster external secret. Else, it will ignore them.
-# When enabled, this adds update/patch permissions on namespaces to handle finalizers for proper
-# cleanup during namespace deletion, preventing race conditions with ExternalSecrets.
-processClusterExternalSecret: true
+processClusterExternalSecret: false
 
 # -- if true, the operator will process cluster push secret. Else, it will ignore them.
-processClusterPushSecret: true
+processClusterPushSecret: false
 
 # -- if true, the operator will process cluster store. Else, it will ignore them.
-processClusterStore: true
+processClusterStore: false
 
 # -- if true, the operator will process secret store. Else, it will ignore them.
-processSecretStore: true
+processSecretStore: false
+
+# -- if true, the operator will process cluster generator. Else, it will ignore them.
+processClusterGenerator: false
+
+# -- if true, the operator will process push secret. Else, it will ignore them.
+processPushSecret: false
+
+# -- Enable reconciliation of secrets.akeyless.io AkeylessSecret resources.
+processAkeylessSecret: true
+
+# -- Enable reconciliation of secrets.akeyless.io AkeylessDynamicSecret resources.
+processAkeylessDynamicSecret: true
+
+# -- Enable reconciliation of secrets.akeyless.io AkeylessSecretStore resources.
+processAkeylessSecretStore: true
+
+# -- Enable reconciliation of secrets.akeyless.io ClusterAkeylessSecretStore resources.
+processClusterAkeylessSecretStore: true
+
+# -- Enable legacy external-secrets.io ExternalSecret reconciliation.
+processLegacyExternalSecret: false
+
+# -- Akeyless event webhook receives change notifications and triggers immediate sync.
+akeylessWebhook:
+  # -- Enable the Akeyless event webhook HTTP server on the operator pod.
+  enabled: false
+  # -- Container port exposed for Akeyless event webhooks.
+  port: 8083
+  # -- HTTP path for inbound Akeyless events.
+  path: /webhook/akeyless
+  # -- Optional bearer token. When set, use extraEnvFrom or extraEnv to inject AKEYLESS_WEBHOOK_TOKEN.
+  token: ""
 
 # -- Default time duration between reconciling (Cluster)SecretStores.
 storeRequeueInterval: ""
-
-# -- if true, the operator will process cluster generator. Else, it will ignore them.
-processClusterGenerator: true
-
-# -- if true, the operator will process push secret. Else, it will ignore them.
-processPushSecret: true
 
 # -- Enable support for generic targets (ConfigMaps, Custom Resources).
 # Warning: Using generic target. Make sure access policies and encryption are properly configured.

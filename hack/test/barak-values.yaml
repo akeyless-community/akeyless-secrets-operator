@@ -1,0 +1,41 @@
+# Test install values for CS-AKS1 / namespace barak
+# Update image.repository / image.tag when moving to the official registry.
+# See docs/image-publishing.md
+createOperator: true
+installCRDs: false
+
+processClusterStore: false
+processSecretStore: false
+processClusterExternalSecret: false
+processClusterPushSecret: false
+processPushSecret: false
+processLegacyExternalSecret: false
+processAkeylessSecret: true
+processAkeylessDynamicSecret: true
+processAkeylessSecretStore: true
+processClusterAkeylessSecretStore: false
+
+scopedRBAC: true
+scopedNamespace: barak
+
+namespaceOverride: barak
+
+image:
+  repository: REPLACE_ME/akeyless-secrets-operator
+  tag: dev
+  pullPolicy: Always
+
+akeylessWebhook:
+  enabled: true
+  port: 8083
+  path: /webhook/akeyless
+  token: "barak-test-webhook-token"
+
+leaderElect: false
+concurrent: 1
+
+serviceAccount:
+  create: true
+
+rbac:
+  create: true

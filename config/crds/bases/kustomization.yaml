@@ -26,3 +26,7 @@ resources:
   - generators.external-secrets.io_uuids.yaml
   - generators.external-secrets.io_vaultdynamicsecrets.yaml
   - generators.external-secrets.io_webhooks.yaml
+  - secrets.akeyless.io_akeylessdynamicsecrets.yaml
+  - secrets.akeyless.io_akeylesssecrets.yaml
+  - secrets.akeyless.io_akeylesssecretstores.yaml
+  - secrets.akeyless.io_clusterakeylesssecretstores.yaml

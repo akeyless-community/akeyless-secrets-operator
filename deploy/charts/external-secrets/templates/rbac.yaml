@@ -14,6 +14,50 @@ metadata:
     {{- include "external-secrets.labels" . | nindent 4 }}
 rules:
   - apiGroups:
+    - "secrets.akeyless.io"
+    resources:
+    - "akeylesssecrets"
+    - "akeylessdynamicsecrets"
+    - "akeylesssecretstores"
+    {{- if .Values.processClusterAkeylessSecretStore }}
+    - "clusterakeylesssecretstores"
+    {{- end }}
+    verbs:
+    - "get"
+    - "list"
+    - "watch"
+  - apiGroups:
+    - "secrets.akeyless.io"
+    resources:
+    - "akeylesssecrets"
+    - "akeylesssecrets/status"
+    - "akeylessdynamicsecrets"
+    - "akeylessdynamicsecrets/status"
+    - "akeylesssecretstores"
+    - "akeylesssecretstores/status"
+    {{- if .Values.processClusterAkeylessSecretStore }}
+    - "clusterakeylesssecretstores"
+    - "clusterakeylesssecretstores/status"
+    {{- end }}
+    verbs:
+    - "get"
+    - "update"
+    - "patch"
+  {{- if or .Values.processAkeylessSecret .Values.processAkeylessDynamicSecret }}
+  - apiGroups:
+    - "apps"
+    resources:
+    - "deployments"
+    - "statefulsets"
+    - "daemonsets"
+    verbs:
+    - "get"
+    - "list"
+    - "watch"
+    - "update"
+    - "patch"
+  {{- end }}
+  - apiGroups:
     - "external-secrets.io"
     resources:
     - "secretstores"

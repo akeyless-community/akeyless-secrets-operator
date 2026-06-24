@@ -1,0 +1,18 @@
+{{- if and .Values.createOperator .Values.akeylessWebhook.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "external-secrets.fullname" . }}-akeyless-webhook
+  namespace: {{ template "external-secrets.namespace" . }}
+  labels:
+    {{- include "external-secrets.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "external-secrets.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: akeyless-webhook
+      port: {{ .Values.akeylessWebhook.port }}
+      targetPort: {{ .Values.akeylessWebhook.port }}
+      protocol: TCP
+{{- end }}
