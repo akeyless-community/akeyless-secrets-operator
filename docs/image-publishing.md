@@ -7,12 +7,12 @@ This guide covers how to build the operator image, publish it for development, a
 | Registry | Example image | When to use |
 |----------|---------------|-------------|
 | Personal Docker Hub (dev) | `docker.io/<your-user>/akeyless-secrets-operator:dev` | Private development and cluster testing |
-| Official community registry (release) | `ghcr.io/akeyless-community/akeyless-secrets-operator:v0.1.0` | Public Helm installs and documentation |
+| Official community registry (release) | `docker.io/akeylesscommunity/akeyless-secrets-operator:0.1.0` | Public Helm installs and documentation |
 
 The **official default** in this repository is:
 
 ```text
-ghcr.io/akeyless-community/akeyless-secrets-operator:<tag>
+docker.io/akeylesscommunity/akeyless-secrets-operator:<tag>
 ```
 
 Tags should follow semver for releases (`v0.1.0`, `v0.2.0`, …). Use descriptive dev tags (`dev-test`, `main-<sha>`) only for personal registries.
@@ -134,19 +134,19 @@ image:
   tag: dev
 ```
 
-**After (release `v0.1.0`):**
+**After (release `0.1.0`):**
 
 ```yaml
 # deploy/charts/external-secrets/values.yaml
 image:
-  repository: ghcr.io/akeyless-community/akeyless-secrets-operator
-  tag: "v0.1.0"
+  repository: docker.io/akeylesscommunity/akeyless-secrets-operator
+  tag: "0.1.0"
 ```
 
 ```makefile
 # Makefile
-export IMAGE_REGISTRY ?= ghcr.io
-export IMAGE_REPO     ?= akeyless-community/akeyless-secrets-operator
+export IMAGE_REGISTRY ?= docker.io
+export IMAGE_REPO     ?= akeylesscommunity/akeyless-secrets-operator
 ```
 
 No code changes are required beyond these configuration files unless you add a CI publish workflow later.

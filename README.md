@@ -97,7 +97,7 @@ make reviewable     # full PR gate (generate, lint, tests, CRD snapshots)
 
 ## Container image
 
-See [docs/image-publishing.md](docs/image-publishing.md) for building, pushing to a personal registry, migrating to `ghcr.io/akeyless-community/akeyless-secrets-operator`, and which files to update when the image coordinates change.
+See [docs/image-publishing.md](docs/image-publishing.md) for building, pushing, and updating `docker.io/akeylesscommunity/akeyless-secrets-operator` image coordinates.
 
 Example manifests: [docs/examples/](docs/examples/).
 
