@@ -1,0 +1,24 @@
+# Akeyless Secrets Operator — code owners
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Security-sensitive paths require security team review.
+.github/workflows/            @akeyless-community/security
+.github/actions/              @akeyless-community/security
+deploy/                       @akeyless-community/security
+config/crds/                  @akeyless-community/security
+pkg/akeyless/webhook/         @akeyless-community/security
+
+# Akeyless provider and controllers.
+apis/akeyless/                @akeyless-community/cs-admin
+pkg/akeyless/                 @akeyless-community/cs-admin
+pkg/controllers/akeyless*     @akeyless-community/cs-admin
+providers/v1/akeyless/        @akeyless-community/cs-admin
+
+# CI / build / release automation.
+.github/                      @akeyless-community/cs-admin
+scripts/                      @akeyless-community/cs-admin
+build/                        @akeyless-community/cs-admin
+Makefile                      @akeyless-community/cs-admin
+
+# Default owners for everything else.
+*                             @akeyless-community/cs-admin

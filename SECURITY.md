@@ -1,34 +1,40 @@
 # Security Policy
 
-- [Security Policy](#security-policy)
-  - [Reporting security problems](#reporting-security-problems)
-  - [Vulnerability Management Plans](#vulnerability-management-plans)
-    - [Critical Updates And Security Notices](#critical-updates-and-security-notices)
+## Supported versions
 
-<a name="reporting"></a>
-## Reporting security problems
+| Version | Supported |
+|---------|-----------|
+| latest `main` | Yes |
+| released tags | Yes, per [GitHub Releases](https://github.com/akeyless-community/akeyless-secrets-operator/releases) |
 
-**DO NOT CREATE AN ISSUE** to report a security problem. Instead, please
-send an email to cncf-ExternalSecretsOp-maintainers@lists.cncf.io
+## Reporting a vulnerability
 
-<a name="vulnerability-management"></a>
-## Vulnerability Management Plans
+**Do not open a public GitHub issue** for security vulnerabilities.
 
-### Critical Updates And Security Notices
+Email **security@akeyless.io** with:
 
-We learn about critical software updates and security threats from these sources
+- Description of the issue
+- Steps to reproduce
+- Impact assessment (if known)
+- Affected version or commit SHA (if known)
 
-1. GitHub Security Alerts
-2. [Dependabot](https://dependabot.com/) Dependency Updates
+We aim to acknowledge reports within 3 business days.
 
-## Helm Chart Security
+## Vulnerability management
 
-Our Helm charts are designed for ease of use and general-purpose scenarios. We strongly recommend that you review the default configuration and harden it to fit your security requirements. 
+We monitor for dependency and workflow issues via:
 
-You can do this by customizing the chart values, or by using our chart as a dependency and extending it with your own security measures, such as NetworkPolicies, Admission Control logic, or other controls.
+1. GitHub Dependabot alerts
+2. GitHub secret scanning and push protection
+3. CodeQL static analysis (`.github/workflows/codeql.yml`)
+4. Dependency review on pull requests (`.github/workflows/dependency-review.yml`)
 
-Any misconfiguration caused by using the provided helm charts is not covered by our support policy - even if it leads to a security incident.
+## Helm chart security
 
-## Security Incident Response
+The Helm chart is intended for general-purpose deployments. Review and harden the default values for your environment (RBAC scope, webhook TLS, network policies, admission controls, and credential storage).
 
-Please follow the guide [SECURITY_RESPONSE.md](SECURITY_RESPONSE.md).
+Misconfiguration of the chart in your cluster is outside the scope of this project's support policy, even when it leads to a security incident.
+
+## Security incident response
+
+For maintainers, follow [SECURITY_RESPONSE.md](SECURITY_RESPONSE.md).

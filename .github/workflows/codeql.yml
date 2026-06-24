@@ -1,16 +1,13 @@
 name: "CodeQL Advanced"
 
-# Disabled until GitHub Advanced Security (code scanning) is enabled on this
-# repository. Re-enable automatic runs by restoring the push/pull_request
-# triggers below once GHAS is available.
+# CodeQL is free for public repositories. While the repo is private, runs are
+# limited; use workflow_dispatch until visibility is public.
 on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
   workflow_dispatch:
-
-# on:
-#   push:
-#     branches: [ "main" ]
-#   pull_request:
-#     branches: [ "main" ]
 
 permissions:
   contents: read
