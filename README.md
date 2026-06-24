@@ -49,6 +49,8 @@ See [docs/provider/akeyless.md](docs/provider/akeyless.md) for configuration exa
 
 ## Quick start
 
+See the full [User Guide](docs/akeyless-secrets-operator-guide.md) for installation, all configuration options, and examples.
+
 ```yaml
 apiVersion: secrets.akeyless.io/v1alpha1
 kind: AkeylessSecretStore
