@@ -46,7 +46,7 @@ image:
   repository: docker.io/akeylesscommunity/akeyless-secrets-operator
   pullPolicy: IfNotPresent
   # -- The image tag to use. The default is the chart appVersion.
-  tag: "0.1.0"
+  tag: "v0.1.0"
   # -- The flavour of tag you want to use
   # There are different image flavours available, like distroless and ubi.
   # Please see GitHub release notes for image tags for these flavors.
