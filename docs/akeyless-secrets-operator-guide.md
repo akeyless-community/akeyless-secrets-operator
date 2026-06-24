@@ -412,4 +412,4 @@ Enable legacy reconciliation temporarily with `--enable-legacy-external-secrets-
 
 - [Image build and registry migration](image-publishing.md)
 - [Example manifests](../docs/examples/)
-- [Manual cluster test guide](../hack/test/barak/README.md)
+- [Example manifests](../docs/examples/)

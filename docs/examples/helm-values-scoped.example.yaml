@@ -1,8 +1,7 @@
-# Test install values for CS-AKS1 / namespace barak
-# Update image.repository / image.tag when moving to the official registry.
-# See docs/image-publishing.md
+# Example Helm values for a namespace-scoped, Akeyless-only operator install.
+# Copy and customize before use. See docs/image-publishing.md for image settings.
 createOperator: true
-installCRDs: false
+installCRDs: true
 
 processClusterStore: false
 processSecretStore: false
@@ -16,20 +15,20 @@ processAkeylessSecretStore: true
 processClusterAkeylessSecretStore: false
 
 scopedRBAC: true
-scopedNamespace: barak
+scopedNamespace: my-app
 
-namespaceOverride: barak
+namespaceOverride: my-app
 
 image:
-  repository: REPLACE_ME/akeyless-secrets-operator
-  tag: dev
-  pullPolicy: Always
+  repository: ghcr.io/akeyless-community/akeyless-secrets-operator
+  tag: ""  # defaults to chart appVersion when empty
+  pullPolicy: IfNotPresent
 
 akeylessWebhook:
-  enabled: true
+  enabled: false
   port: 8083
   path: /webhook/akeyless
-  token: "barak-test-webhook-token"
+  token: ""
 
 leaderElect: false
 concurrent: 1

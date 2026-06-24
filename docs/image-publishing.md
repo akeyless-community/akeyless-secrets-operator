@@ -6,7 +6,7 @@ This guide covers how to build the operator image, publish it for development, a
 
 | Registry | Example image | When to use |
 |----------|---------------|-------------|
-| Personal Docker Hub (dev) | `docker.io/barakdmax/akeyless-secrets-operator:dev-test` | Private development and cluster testing |
+| Personal Docker Hub (dev) | `docker.io/<your-user>/akeyless-secrets-operator:dev` | Private development and cluster testing |
 | Official community registry (release) | `ghcr.io/akeyless-community/akeyless-secrets-operator:v0.1.0` | Public Helm installs and documentation |
 
 The **official default** in this repository is:
@@ -115,57 +115,32 @@ ARCH=amd64 \
 
 ## Files to update when changing the image
 
-Update **every** location that pins an image so dev docs, Helm defaults, and test manifests stay consistent.
+Update these locations so Helm defaults and local build tooling stay consistent.
 
 | File | What to change | Used by |
 |------|----------------|---------|
 | [`deploy/charts/external-secrets/values.yaml`](../deploy/charts/external-secrets/values.yaml) | `image.repository` and `image.tag` | **Primary Helm default** — all `helm install` / `helm upgrade` commands that do not override image |
 | [`Makefile`](../Makefile) | `IMAGE_REGISTRY` and `IMAGE_REPO` (lines ~19–21) | `make docker.build` / `make docker.push` defaults |
-| [`hack/test/barak/operator.yaml`](../hack/test/barak/operator.yaml) | `spec.template.spec.containers[0].image` | Raw-manifest test install on CS-AKS1 / `barak` namespace |
-| [`hack/test/barak-values.yaml`](../hack/test/barak-values.yaml) | `image.repository` and `image.tag` | Helm-based test install for the `barak` namespace |
+| [`docs/examples/helm-values-scoped.example.yaml`](../docs/examples/helm-values-scoped.example.yaml) | `image.repository` and `image.tag` | Example scoped Helm install (optional) |
 
 ### Example: switching from personal Docker Hub to official GHCR
 
 **Before (dev):**
 
 ```yaml
-# hack/test/barak/operator.yaml
-image: docker.io/barakdmax/akeyless-secrets-operator:dev-test
-```
-
-```yaml
 # deploy/charts/external-secrets/values.yaml
 image:
-  repository: ghcr.io/akeyless-community/akeyless-secrets-operator
-  tag: ""   # defaults to chart appVersion when empty
-```
-
-```yaml
-# hack/test/barak-values.yaml
-image:
-  repository: docker.io/barakdmax/akeyless-secrets-operator
-  tag: dev-test
+  repository: docker.io/<your-user>/akeyless-secrets-operator
+  tag: dev
 ```
 
 **After (release `v0.1.0`):**
-
-```yaml
-# hack/test/barak/operator.yaml
-image: ghcr.io/akeyless-community/akeyless-secrets-operator:v0.1.0
-```
 
 ```yaml
 # deploy/charts/external-secrets/values.yaml
 image:
   repository: ghcr.io/akeyless-community/akeyless-secrets-operator
   tag: "v0.1.0"
-```
-
-```yaml
-# hack/test/barak-values.yaml
-image:
-  repository: ghcr.io/akeyless-community/akeyless-secrets-operator
-  tag: v0.1.0
 ```
 
 ```makefile
@@ -190,13 +165,13 @@ helm upgrade --install akeyless-secrets-operator \
   --set image.tag=v0.1.0
 ```
 
-Scoped test install (matches `hack/test/barak-values.yaml`):
+Scoped namespace install (see `docs/examples/helm-values-scoped.example.yaml`):
 
 ```bash
 helm upgrade --install akeyless-secrets-operator \
   ./deploy/charts/external-secrets \
-  -f hack/test/barak-values.yaml \
-  --namespace barak
+  -f docs/examples/helm-values-scoped.example.yaml \
+  --namespace my-app --create-namespace
 ```
 
 Override image at install time without editing files:
@@ -210,14 +185,17 @@ helm upgrade --install akeyless-secrets-operator \
 
 ---
 
-## Install with raw manifests (test)
+## Example manifests
+
+Apply the examples under `docs/examples/` after installing the operator:
 
 ```bash
-kubectl apply -f hack/test/barak/operator.yaml
-kubectl apply -f hack/test/barak/test-resources.yaml
+kubectl apply -f docs/examples/akeyless-creds-secret.example.yaml
+kubectl apply -f docs/examples/akeyless-secret-store.yaml
+kubectl apply -f docs/examples/akeyless-secret.yaml
 ```
 
-Edit the `image:` line in `hack/test/barak/operator.yaml` before applying when the registry changes.
+See also [rollout-restart-example.yaml](../docs/examples/rollout-restart-example.yaml) for rollout restart testing.
 
 ---
 
@@ -227,7 +205,6 @@ Edit the `image:` line in `hack/test/barak/operator.yaml` before applying when t
 - [ ] Image pushed to `ghcr.io/akeyless-community/akeyless-secrets-operator:<semver>`
 - [ ] `deploy/charts/external-secrets/values.yaml` updated
 - [ ] `Makefile` `IMAGE_REGISTRY` / `IMAGE_REPO` confirmed
-- [ ] Test manifests under `hack/test/barak/` updated (or left on dev image intentionally)
 - [ ] Helm chart `appVersion` in `Chart.yaml` matches the release tag
 - [ ] Release notes mention required operator flags for Akeyless-only mode
 - [ ] If the registry is private, document required `imagePullSecrets`
@@ -236,6 +213,7 @@ Edit the `image:` line in `hack/test/barak/operator.yaml` before applying when t
 
 ## Related docs
 
-- [Manual cluster test (`hack/test/barak`)](../hack/test/barak/README.md)
+- [User guide](akeyless-secrets-operator-guide.md)
+- [Example manifests](../docs/examples/)
 - [Helm chart values](../deploy/charts/external-secrets/values.yaml)
 - [Contributing — dev guide](contributing/devguide.md)

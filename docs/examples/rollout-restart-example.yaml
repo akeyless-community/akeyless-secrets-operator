@@ -1,0 +1,52 @@
+# Example: restart a Deployment when synced Akeyless secret data changes.
+# Apply akeyless-secret-store.yaml and akeyless-creds-secret.example.yaml first.
+apiVersion: secrets.akeyless.io/v1alpha1
+kind: AkeylessSecret
+metadata:
+  name: app-secret
+  namespace: my-app
+spec:
+  storeRef:
+    name: akeyless
+    kind: AkeylessSecretStore
+  syncPolicy: OnRemoteChange
+  syncInterval: 5m
+  target:
+    name: app-secret
+    creationPolicy: Owner
+  rolloutRestartTargets:
+    - kind: Deployment
+      name: myapp
+  data:
+    - secretKey: password
+      remoteRef:
+        key: /path/to/secret
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+  namespace: my-app
+  labels:
+    app: myapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: myapp
+  template:
+    metadata:
+      labels:
+        app: myapp
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.27-alpine
+          env:
+            - name: PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: password
+          ports:
+            - containerPort: 80

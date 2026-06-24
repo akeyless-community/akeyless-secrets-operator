@@ -99,7 +99,7 @@ make reviewable     # full PR gate (generate, lint, tests, CRD snapshots)
 
 See [docs/image-publishing.md](docs/image-publishing.md) for building, pushing to a personal registry, migrating to `ghcr.io/akeyless-community/akeyless-secrets-operator`, and which files to update when the image coordinates change.
 
-Manual cluster test manifests: [hack/test/barak/README.md](hack/test/barak/README.md).
+Example manifests: [docs/examples/](docs/examples/).
 
 ## Origin & license
 

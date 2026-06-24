@@ -143,6 +143,6 @@ Manual follow-ups (Settings UI):
 
 Pre-public hygiene (do before flipping visibility):
   - Run: gitleaks detect --source . --redact
-  - Review hack/test/barak/ for personal cluster details
+  - Review docs/examples/ for placeholder credentials before publishing
   - Confirm no real credentials in git history
 EOF
