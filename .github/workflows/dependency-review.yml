@@ -11,6 +11,7 @@ on: [pull_request]
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   dependency-review:
@@ -25,5 +26,22 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           persist-credentials: false
+
+      - name: Check dependency graph availability
+        id: dependency_graph
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api \
+            "/repos/${GITHUB_REPOSITORY}/dependency-graph/compare/${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
+            >/dev/null
+
       - name: 'Dependency Review'
+        if: steps.dependency_graph.outcome == 'success'
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v4
+
+      - name: Skip dependency review when graph is unavailable
+        if: steps.dependency_graph.outcome != 'success'
+        run: |
+          echo "::warning::Dependency review is unavailable. Enable the dependency graph under Settings → Code security and analysis, then re-run this workflow."

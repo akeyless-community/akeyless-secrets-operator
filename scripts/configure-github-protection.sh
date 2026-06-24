@@ -45,17 +45,34 @@ run gh api \
   --method PUT \
   -H "Accept: application/vnd.github+json" \
   "repos/${OWNER}/${REPO}/actions/permissions" \
-  -f "enabled=true" \
-  -f "allowed_actions=selected" \
-  -f "github_owned_allowed=true" \
-  -f "verified_allowed=true"
+  --input - <<'EOF'
+{
+  "enabled": true,
+  "allowed_actions": "selected"
+}
+EOF
+
+run gh api \
+  --method PUT \
+  -H "Accept: application/vnd.github+json" \
+  "repos/${OWNER}/${REPO}/actions/permissions/selected-actions" \
+  --input - <<'EOF'
+{
+  "github_owned_allowed": true,
+  "verified_allowed": true
+}
+EOF
 
 run gh api \
   --method PUT \
   -H "Accept: application/vnd.github+json" \
   "repos/${OWNER}/${REPO}/actions/permissions/workflow" \
-  -f "default_workflow_permissions=read" \
-  -f "can_approve_pull_request_reviews=false"
+  --input - <<'EOF'
+{
+  "default_workflow_permissions": "read",
+  "can_approve_pull_request_reviews": false
+}
+EOF
 
 echo "2/5 Enabling security analysis features..."
 run gh api \
@@ -65,7 +82,8 @@ run gh api \
   --input - <<'EOF'
 {
   "security_and_analysis": {
-    "advanced_security": { "status": "enabled" },
+    "dependency_graph": { "status": "enabled" },
+    "dependabot_alerts": { "status": "enabled" },
     "secret_scanning": { "status": "enabled" },
     "secret_scanning_push_protection": { "status": "enabled" },
     "dependabot_security_updates": { "status": "enabled" }
@@ -103,11 +121,15 @@ run gh api \
 EOF
 
 echo "4/5 Creating repository ruleset (signed commits + no force-push)..."
-run gh api \
-  --method POST \
-  -H "Accept: application/vnd.github+json" \
-  "repos/${OWNER}/${REPO}/rulesets" \
-  --input - <<EOF
+ruleset_id="$(gh api "repos/${OWNER}/${REPO}/rulesets" --jq '.[] | select(.name == "Protect '"${BRANCH}"'") | .id' 2>/dev/null | head -1 || true)"
+if [[ -n "$ruleset_id" ]]; then
+  echo "Ruleset already exists (id: ${ruleset_id}); skipping."
+else
+  run gh api \
+    --method POST \
+    -H "Accept: application/vnd.github+json" \
+    "repos/${OWNER}/${REPO}/rulesets" \
+    --input - <<EOF
 {
   "name": "Protect ${BRANCH}",
   "target": "branch",
@@ -124,6 +146,7 @@ run gh api \
   ]
 }
 EOF
+fi
 
 echo "5/5 Verifying repository settings..."
 gh api "repos/${OWNER}/${REPO}" --jq '{visibility, delete_branch_on_merge, allow_forking}'
@@ -141,7 +164,7 @@ Manual follow-ups (Settings UI):
   - Settings → Collaborators and teams: confirm @akeyless-community/cs-admin and @akeyless-community/security have appropriate access
   - Re-run CodeQL once (Actions → CodeQL Advanced → Run workflow) to confirm GHAS is active
 
-Pre-public hygiene (do before flipping visibility):
+Pre-public hygiene:
   - Run: gitleaks detect --source . --redact
   - Review docs/examples/ for placeholder credentials before publishing
   - Confirm no real credentials in git history
