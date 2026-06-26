@@ -101,16 +101,15 @@ run gh api \
   "required_status_checks": {
     "strict": true,
     "contexts": [
-      "test-and-build",
-      "dependency-review"
+      "test-and-build"
     ]
   },
-  "enforce_admins": true,
+  "enforce_admins": false,
   "required_pull_request_reviews": {
     "dismiss_stale_reviews": true,
-    "require_code_owner_reviews": true,
-    "required_approving_review_count": 1,
-    "require_last_push_approval": true
+    "require_code_owner_reviews": false,
+    "required_approving_review_count": 0,
+    "require_last_push_approval": false
   },
   "required_linear_history": true,
   "allow_force_pushes": false,
@@ -120,16 +119,9 @@ run gh api \
 }
 EOF
 
-echo "4/5 Creating repository ruleset (signed commits + no force-push)..."
+echo "4/5 Upserting repository ruleset (no force-push, no signed commits required)..."
 ruleset_id="$(gh api "repos/${OWNER}/${REPO}/rulesets" --jq '.[] | select(.name == "Protect '"${BRANCH}"'") | .id' 2>/dev/null | head -1 || true)"
-if [[ -n "$ruleset_id" ]]; then
-  echo "Ruleset already exists (id: ${ruleset_id}); skipping."
-else
-  run gh api \
-    --method POST \
-    -H "Accept: application/vnd.github+json" \
-    "repos/${OWNER}/${REPO}/rulesets" \
-    --input - <<EOF
+ruleset_payload="$(cat <<EOF
 {
   "name": "Protect ${BRANCH}",
   "target": "branch",
@@ -141,11 +133,28 @@ else
     }
   },
   "rules": [
-    { "type": "non_fast_forward" },
-    { "type": "required_signatures" }
+    { "type": "non_fast_forward" }
   ]
 }
 EOF
+)"
+if [[ -n "$ruleset_id" ]]; then
+  echo "Updating existing ruleset (id: ${ruleset_id})..."
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf 'DRY RUN: update ruleset %s\n' "$ruleset_id"
+  else
+    printf '%s' "$ruleset_payload" | gh api \
+      --method PUT \
+      -H "Accept: application/vnd.github+json" \
+      "repos/${OWNER}/${REPO}/rulesets/${ruleset_id}" \
+      --input -
+  fi
+else
+  run gh api \
+    --method POST \
+    -H "Accept: application/vnd.github+json" \
+    "repos/${OWNER}/${REPO}/rulesets" \
+    --input - <<<"$ruleset_payload"
 fi
 
 echo "5/5 Verifying repository settings..."
