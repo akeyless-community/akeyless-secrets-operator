@@ -378,7 +378,7 @@ Key values for a minimal Akeyless-only deployment:
 | `scopedRBAC` | `false` | Limit RBAC to `scopedNamespace` |
 | `scopedNamespace` | `""` | Namespace scope for operator |
 | `akeylessWebhook.enabled` | `false` | Enable event webhook server |
-| `image.repository` | `ghcr.io/akeyless-community/akeyless-secrets-operator` | Container image |
+| `image.repository` | `docker.io/akeylesscommunity/akeyless-secrets-operator` | Container image |
 | `image.tag` | chart `appVersion` | Image tag |
 | `installCRDs` | `true` | Install CRDs with Helm |
 
@@ -412,4 +412,4 @@ Enable legacy reconciliation temporarily with `--enable-legacy-external-secrets-
 
 - [Image build and registry migration](image-publishing.md)
 - [Example manifests](../docs/examples/)
-- [Manual cluster test guide](../hack/test/barak/README.md)
+- [Example manifests](../docs/examples/)

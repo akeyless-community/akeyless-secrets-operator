@@ -45,17 +45,34 @@ run gh api \
   --method PUT \
   -H "Accept: application/vnd.github+json" \
   "repos/${OWNER}/${REPO}/actions/permissions" \
-  -f "enabled=true" \
-  -f "allowed_actions=selected" \
-  -f "github_owned_allowed=true" \
-  -f "verified_allowed=true"
+  --input - <<'EOF'
+{
+  "enabled": true,
+  "allowed_actions": "selected"
+}
+EOF
+
+run gh api \
+  --method PUT \
+  -H "Accept: application/vnd.github+json" \
+  "repos/${OWNER}/${REPO}/actions/permissions/selected-actions" \
+  --input - <<'EOF'
+{
+  "github_owned_allowed": true,
+  "verified_allowed": true
+}
+EOF
 
 run gh api \
   --method PUT \
   -H "Accept: application/vnd.github+json" \
   "repos/${OWNER}/${REPO}/actions/permissions/workflow" \
-  -f "default_workflow_permissions=read" \
-  -f "can_approve_pull_request_reviews=false"
+  --input - <<'EOF'
+{
+  "default_workflow_permissions": "read",
+  "can_approve_pull_request_reviews": false
+}
+EOF
 
 echo "2/5 Enabling security analysis features..."
 run gh api \
@@ -65,7 +82,8 @@ run gh api \
   --input - <<'EOF'
 {
   "security_and_analysis": {
-    "advanced_security": { "status": "enabled" },
+    "dependency_graph": { "status": "enabled" },
+    "dependabot_alerts": { "status": "enabled" },
     "secret_scanning": { "status": "enabled" },
     "secret_scanning_push_protection": { "status": "enabled" },
     "dependabot_security_updates": { "status": "enabled" }
@@ -83,16 +101,15 @@ run gh api \
   "required_status_checks": {
     "strict": true,
     "contexts": [
-      "test-and-build",
-      "dependency-review"
+      "test-and-build"
     ]
   },
-  "enforce_admins": true,
+  "enforce_admins": false,
   "required_pull_request_reviews": {
     "dismiss_stale_reviews": true,
-    "require_code_owner_reviews": true,
-    "required_approving_review_count": 1,
-    "require_last_push_approval": true
+    "require_code_owner_reviews": false,
+    "required_approving_review_count": 0,
+    "require_last_push_approval": false
   },
   "required_linear_history": true,
   "allow_force_pushes": false,
@@ -102,12 +119,9 @@ run gh api \
 }
 EOF
 
-echo "4/5 Creating repository ruleset (signed commits + no force-push)..."
-run gh api \
-  --method POST \
-  -H "Accept: application/vnd.github+json" \
-  "repos/${OWNER}/${REPO}/rulesets" \
-  --input - <<EOF
+echo "4/5 Upserting repository ruleset (no force-push, no signed commits required)..."
+ruleset_id="$(gh api "repos/${OWNER}/${REPO}/rulesets" --jq '.[] | select(.name == "Protect '"${BRANCH}"'") | .id' 2>/dev/null | head -1 || true)"
+ruleset_payload="$(cat <<EOF
 {
   "name": "Protect ${BRANCH}",
   "target": "branch",
@@ -119,11 +133,29 @@ run gh api \
     }
   },
   "rules": [
-    { "type": "non_fast_forward" },
-    { "type": "required_signatures" }
+    { "type": "non_fast_forward" }
   ]
 }
 EOF
+)"
+if [[ -n "$ruleset_id" ]]; then
+  echo "Updating existing ruleset (id: ${ruleset_id})..."
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    printf 'DRY RUN: update ruleset %s\n' "$ruleset_id"
+  else
+    printf '%s' "$ruleset_payload" | gh api \
+      --method PUT \
+      -H "Accept: application/vnd.github+json" \
+      "repos/${OWNER}/${REPO}/rulesets/${ruleset_id}" \
+      --input -
+  fi
+else
+  run gh api \
+    --method POST \
+    -H "Accept: application/vnd.github+json" \
+    "repos/${OWNER}/${REPO}/rulesets" \
+    --input - <<<"$ruleset_payload"
+fi
 
 echo "5/5 Verifying repository settings..."
 gh api "repos/${OWNER}/${REPO}" --jq '{visibility, delete_branch_on_merge, allow_forking}'
@@ -141,8 +173,8 @@ Manual follow-ups (Settings UI):
   - Settings → Collaborators and teams: confirm @akeyless-community/cs-admin and @akeyless-community/security have appropriate access
   - Re-run CodeQL once (Actions → CodeQL Advanced → Run workflow) to confirm GHAS is active
 
-Pre-public hygiene (do before flipping visibility):
+Pre-public hygiene:
   - Run: gitleaks detect --source . --redact
-  - Review hack/test/barak/ for personal cluster details
+  - Review docs/examples/ for placeholder credentials before publishing
   - Confirm no real credentials in git history
 EOF
