@@ -1,5 +1,5 @@
 # Example Helm values for a namespace-scoped, Akeyless-only operator install.
-# Copy and customize before use. See docs/image-publishing.md for image settings.
+# Copy and customize before use. See docs/image-publishing.md for build and install steps.
 createOperator: true
 installCRDs: true
 
@@ -20,8 +20,8 @@ scopedNamespace: my-app
 namespaceOverride: my-app
 
 image:
-  repository: ghcr.io/akeyless-community/akeyless-secrets-operator
-  tag: ""
+  repository: docker.io/<your-user>/akeyless-secrets-operator
+  tag: dev
   pullPolicy: IfNotPresent
 
 akeylessWebhook:

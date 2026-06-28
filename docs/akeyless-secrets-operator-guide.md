@@ -40,33 +40,40 @@ Legacy `external-secrets.io` resources (`ExternalSecret`, `SecretStore`, etc.) a
 - Network access from the cluster to Akeyless (SaaS or Gateway)
 - Akeyless credentials with read access to target items
 
-### Install with Helm
+### Install with Helm (local build)
 
-Install from the published OCI chart (recommended after the first release):
+The operator is installed from the Helm chart in this repository. **Build the container image yourself** and point Helm at your registry — there is no public OCI chart or image pull.
 
-```bash
-helm upgrade --install akeyless-secrets-operator \
-  oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
-  --version 0.1.0 \
-  --namespace akeyless-secrets-operator --create-namespace \
-  --set installCRDs=true
-```
-
-The chart ships with Akeyless-only defaults: legacy ESO controllers and webhooks are disabled, and the operator image is `ghcr.io/akeyless-community/akeyless-secrets-operator`.
-
-For development, or before the chart is published, install from a local checkout:
+**1. Build and push the image**
 
 ```bash
 git clone https://github.com/akeyless-community/akeyless-secrets-operator.git
 cd akeyless-secrets-operator
 
+ARCH=amd64 make build-amd64
+docker build --platform linux/amd64 -f Dockerfile \
+  -t docker.io/<your-user>/akeyless-secrets-operator:dev .
+
+docker login
+docker push docker.io/<your-user>/akeyless-secrets-operator:dev
+```
+
+For arm64 clusters, use `ARCH=arm64` and `--platform linux/arm64`.
+
+**2. Install from the local chart**
+
+```bash
 helm upgrade --install akeyless-secrets-operator \
   ./deploy/charts/external-secrets \
   --namespace akeyless-secrets-operator --create-namespace \
-  --set installCRDs=true
+  --set installCRDs=true \
+  --set image.repository=docker.io/<your-user>/akeyless-secrets-operator \
+  --set image.tag=dev
 ```
 
-See [image-publishing.md](image-publishing.md) for release and publishing steps.
+If your registry is private, create an `imagePullSecret` in the operator namespace and set `imagePullSecrets` in Helm values.
+
+See [image-publishing.md](image-publishing.md) for Make targets, scoped installs, and registry options.
 
 ### Create Akeyless credentials
 
@@ -387,8 +394,8 @@ Key values for a minimal Akeyless-only deployment:
 | `scopedRBAC` | `false` | Limit RBAC to `scopedNamespace` |
 | `scopedNamespace` | `""` | Namespace scope for operator |
 | `akeylessWebhook.enabled` | `false` | Enable event webhook server |
-| `image.repository` | `ghcr.io/akeyless-community/akeyless-secrets-operator` | Container image |
-| `image.tag` | chart `appVersion` | Image tag |
+| `image.repository` | *(set at install)* | Container image you built and pushed |
+| `image.tag` | *(set at install)* | Tag of your built image |
 | `installCRDs` | `true` | Install CRDs with Helm |
 
 ### Operator CLI flags (Akeyless controllers)
@@ -419,6 +426,5 @@ Enable legacy reconciliation temporarily with `--enable-legacy-external-secrets-
 
 ## Related documentation
 
-- [Image build and registry migration](image-publishing.md)
-- [Example manifests](../docs/examples/)
+- [Build and install from source](image-publishing.md)
 - [Example manifests](../docs/examples/)
