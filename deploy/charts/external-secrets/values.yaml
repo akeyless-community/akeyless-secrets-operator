@@ -43,10 +43,10 @@ bitwarden-sdk-server:
 revisionHistoryLimit: 10
 
 image:
-  repository: docker.io/akeylesscommunity/akeyless-secrets-operator
+  repository: ghcr.io/akeyless-community/akeyless-secrets-operator
   pullPolicy: IfNotPresent
   # -- The image tag to use. The default is the chart appVersion.
-  tag: "v0.1.0"
+  tag: ""
   # -- The flavour of tag you want to use
   # There are different image flavours available, like distroless and ubi.
   # Please see GitHub release notes for image tags for these flavors.
@@ -472,8 +472,8 @@ hostUsers:
 webhook:
   # -- Annotations to place on validating webhook configuration.
   annotations: {}
-  # -- Specifies whether a webhook deployment be created. If set to false, crds.conversion.enabled should also be set to false otherwise the kubeapi will be hammered because the conversion is looking for a webhook endpoint.
-  create: true
+  # -- Legacy ESO validating webhook. Disabled for Akeyless-only installs.
+  create: false
   # -- Specifies the time to check if the cert is valid
   certCheckInterval: "5m"
   # -- Specifies the lookaheadInterval for certificate validity
@@ -701,8 +701,8 @@ webhook:
     loadBalancerIP: ""
 
 certController:
-  # -- Specifies whether a certificate controller deployment be created.
-  create: true
+  # -- Legacy ESO webhook certificate controller. Disabled for Akeyless-only installs.
+  create: false
   requeueInterval: "5m"
   replicaCount: 1
   # -- Specifies Log Params to the Certificate Controller

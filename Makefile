@@ -16,8 +16,8 @@ DOCKER ?= docker
 all: $(addprefix build-,$(ARCH))
 
 # Image registry for build/push image targets
-export IMAGE_REGISTRY ?= docker.io
-export IMAGE_REPO     ?= akeylesscommunity/akeyless-secrets-operator
+export IMAGE_REGISTRY ?= ghcr.io
+export IMAGE_REPO     ?= akeyless-community/akeyless-secrets-operator
 export IMAGE_NAME ?= $(IMAGE_REGISTRY)/$(IMAGE_REPO)
 
 BUNDLE_DIR     ?= deploy/crds

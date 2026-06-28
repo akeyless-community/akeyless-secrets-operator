@@ -42,22 +42,31 @@ Legacy `external-secrets.io` resources (`ExternalSecret`, `SecretStore`, etc.) a
 
 ### Install with Helm
 
+Install from the published OCI chart (recommended after the first release):
+
 ```bash
 helm upgrade --install akeyless-secrets-operator \
   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
+  --version 0.1.0 \
   --namespace akeyless-secrets-operator --create-namespace \
   --set installCRDs=true
 ```
 
-Or install from a local checkout:
+The chart ships with Akeyless-only defaults: legacy ESO controllers and webhooks are disabled, and the operator image is `ghcr.io/akeyless-community/akeyless-secrets-operator`.
+
+For development, or before the chart is published, install from a local checkout:
 
 ```bash
+git clone https://github.com/akeyless-community/akeyless-secrets-operator.git
+cd akeyless-secrets-operator
+
 helm upgrade --install akeyless-secrets-operator \
   ./deploy/charts/external-secrets \
-  --namespace akeyless-secrets-operator --create-namespace
+  --namespace akeyless-secrets-operator --create-namespace \
+  --set installCRDs=true
 ```
 
-See [image-publishing.md](image-publishing.md) for building and publishing container images.
+See [image-publishing.md](image-publishing.md) for release and publishing steps.
 
 ### Create Akeyless credentials
 
@@ -378,7 +387,7 @@ Key values for a minimal Akeyless-only deployment:
 | `scopedRBAC` | `false` | Limit RBAC to `scopedNamespace` |
 | `scopedNamespace` | `""` | Namespace scope for operator |
 | `akeylessWebhook.enabled` | `false` | Enable event webhook server |
-| `image.repository` | `docker.io/akeylesscommunity/akeyless-secrets-operator` | Container image |
+| `image.repository` | `ghcr.io/akeyless-community/akeyless-secrets-operator` | Container image |
 | `image.tag` | chart `appVersion` | Image tag |
 | `installCRDs` | `true` | Install CRDs with Helm |
 
