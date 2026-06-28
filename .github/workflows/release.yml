@@ -88,6 +88,7 @@ jobs:
       - name: Package Helm chart
         run: |
           make helm.generate
+          helm dependency update deploy/charts/external-secrets
           helm package deploy/charts/external-secrets --destination /tmp/chart
           ls -la /tmp/chart
 
