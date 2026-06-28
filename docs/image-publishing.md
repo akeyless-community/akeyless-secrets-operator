@@ -36,6 +36,29 @@ helm upgrade --install akeyless-secrets-operator \
   --set installCRDs=true
 ```
 
+Scoped namespace install (see `docs/examples/helm-values-scoped.example.yaml`):
+
+```bash
+helm upgrade --install akeyless-secrets-operator \
+  ./deploy/charts/external-secrets \
+  -f docs/examples/helm-values-scoped.example.yaml \
+  --namespace my-app --create-namespace
+```
+
+---
+
+## Example manifests
+
+Apply the examples under `docs/examples/` after installing the operator:
+
+```bash
+kubectl apply -f docs/examples/akeyless-creds-secret.example.yaml
+kubectl apply -f docs/examples/akeyless-secret-store.yaml
+kubectl apply -f docs/examples/akeyless-secret.yaml
+```
+
+See also [rollout-restart-example.yaml](../docs/examples/rollout-restart-example.yaml) for rollout restart testing.
+
 ---
 
 ## Publish a release (maintainers)
@@ -89,6 +112,8 @@ Or use Make defaults:
 ```bash
 ARCH=amd64 IMAGE_TAG=dev make docker.build docker.push
 ```
+
+For arm64 clusters, replace `amd64` with `arm64`.
 
 ---
 
