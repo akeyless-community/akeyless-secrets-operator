@@ -119,6 +119,9 @@ spec:
           {{- if not .Values.processClusterAkeylessSecretStore }}
           - --enable-cluster-akeyless-secret-store-reconciler=false
           {{- end }}
+          {{- if not .Values.processGeneratorState }}
+          - --enable-generator-state=false
+          {{- end }}
           {{- if .Values.processLegacyExternalSecret }}
           - --enable-legacy-external-secrets-reconciler=true
           {{- end }}

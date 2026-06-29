@@ -88,6 +88,8 @@ helm upgrade --install akeyless-secrets-operator \
   --set image.tag=dev
 ```
 
+The chart also disables the legacy **GeneratorState** controller by default (`processGeneratorState: false`), since the GeneratorState CRD is not installed in Akeyless-only deployments. Without this, the operator crash-loops when the CRD is missing.
+
 See [image-publishing.md](image-publishing.md) for Make targets, scoped installs, and registry options.
 
 ### Create Akeyless credentials
@@ -412,6 +414,7 @@ Key values for a minimal Akeyless-only deployment:
 | `image.repository` | *(set at install)* | Container image you built and pushed |
 | `image.tag` | *(set at install)* | Tag of your built image |
 | `installCRDs` | `true` | Install CRDs with Helm |
+| `processGeneratorState` | `false` | Legacy GeneratorState controller (requires generator CRD) |
 
 ### Operator CLI flags (Akeyless controllers)
 
@@ -422,7 +425,7 @@ Key values for a minimal Akeyless-only deployment:
 | `--enable-akeyless-secret-store-reconciler` | `true` | `AkeylessSecretStore` controller |
 | `--enable-cluster-akeyless-secret-store-reconciler` | `true` | `ClusterAkeylessSecretStore` controller |
 | `--enable-legacy-external-secrets-reconciler` | `false` | Legacy ESO controllers |
-| `--enable-generator-state` | `true` | Legacy GeneratorState controller (disable if CRD not installed) |
+| `--enable-generator-state` | `false` | Legacy GeneratorState controller (enable only if CRD is installed) |
 | `--namespace` | all | Restrict reconciliation to one namespace |
 
 ---
