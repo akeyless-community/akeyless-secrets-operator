@@ -73,6 +73,21 @@ helm upgrade --install akeyless-secrets-operator \
 
 If your registry is private, create an `imagePullSecret` in the operator namespace and set `imagePullSecrets` in Helm values.
 
+### Co-existing with External Secrets Operator
+
+If **External Secrets Operator (ESO)** is already installed in another namespace, keep the default chart values — only Akeyless CRDs (`secrets.akeyless.io`) are installed. Legacy ESO CRDs (`external-secrets.io`, `generators.external-secrets.io`) are **not** created by default, so Helm will not conflict with the existing ESO release.
+
+If the Akeyless CRDs are already present (for example from a prior manual apply), set `installCRDs=false` and install only the operator Deployment:
+
+```bash
+helm upgrade --install akeyless-secrets-operator \
+  ./deploy/charts/external-secrets \
+  --namespace akeyless-secrets-operator --create-namespace \
+  --set installCRDs=false \
+  --set image.repository=docker.io/<your-user>/akeyless-secrets-operator \
+  --set image.tag=dev
+```
+
 See [image-publishing.md](image-publishing.md) for Make targets, scoped installs, and registry options.
 
 ### Create Akeyless credentials

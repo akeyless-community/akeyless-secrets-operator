@@ -1,0 +1,23 @@
+suite: test akeyless crd gating
+templates:
+  - crds/akeylessdynamicsecret.yaml
+  - crds/akeylesssecret.yaml
+  - crds/akeylesssecretstore.yaml
+  - crds/clusterakeylesssecretstore.yaml
+tests:
+  - it: should render Akeyless CRDs when installCRDs is true
+    set:
+      installCRDs: true
+    asserts:
+      - isKind:
+          of: CustomResourceDefinition
+      - matchRegex:
+          path: metadata.name
+          pattern: secrets\.akeyless\.io$
+
+  - it: should not render Akeyless CRDs when installCRDs is false
+    set:
+      installCRDs: false
+    asserts:
+      - hasDocuments:
+          count: 0

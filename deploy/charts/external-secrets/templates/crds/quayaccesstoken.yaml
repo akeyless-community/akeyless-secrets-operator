@@ -1,27 +1,34 @@
+{{- if and (.Values.installCRDs) (.Values.crds.createGenerators) }}
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
+    {{- with .Values.crds.annotations }}
+    {{- toYaml . | nindent 4}}
+    {{- end }}
+    {{- if and .Values.crds.conversion.enabled .Values.webhook.certManager.enabled .Values.webhook.certManager.addInjectorAnnotations }}
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "external-secrets.fullname" . }}-webhook
+    {{- end }}
     controller-gen.kubebuilder.io/version: v0.19.0
   labels:
     external-secrets.io/component: controller
-  name: mfas.generators.external-secrets.io
+  name: quayaccesstokens.generators.external-secrets.io
 spec:
   group: generators.external-secrets.io
   names:
     categories:
       - external-secrets
       - external-secrets-generators
-    kind: MFA
-    listKind: MFAList
-    plural: mfas
-    singular: mfa
+    kind: QuayAccessToken
+    listKind: QuayAccessTokenList
+    plural: quayaccesstokens
+    singular: quayaccesstoken
   scope: Namespaced
   versions:
     - name: v1alpha1
       schema:
         openAPIV3Schema:
-          description: MFA generates a new TOTP token that is compliant with RFC 6238.
+          description: QuayAccessToken generates Quay oauth token for pulling/pushing images
           properties:
             apiVersion:
               description: |-
@@ -41,52 +48,50 @@ spec:
             metadata:
               type: object
             spec:
-              description: MFASpec controls the behavior of the mfa generator.
+              description: QuayAccessTokenSpec defines the desired state to generate a Quay access token.
               properties:
-                algorithm:
-                  description: Algorithm to use for encoding. Defaults to SHA1 as per the RFC.
+                robotAccount:
+                  description: Name of the robot account you are federating with
                   type: string
-                length:
-                  description: Length defines the token length. Defaults to 6 characters.
-                  type: integer
-                secret:
-                  description: Secret is a secret selector to a secret containing the seed secret to generate the TOTP value from.
+                serviceAccountRef:
+                  description: Name of the service account you are federating with
                   properties:
-                    key:
+                    audiences:
                       description: |-
-                        A key in the referenced Secret.
-                        Some instances of this field may be defaulted, in others it may be required.
-                      maxLength: 253
-                      minLength: 1
-                      pattern: ^[-._a-zA-Z0-9]+$
-                      type: string
+                        Audience specifies the `aud` claim for the service account token
+                        If the service account uses a well-known annotation for e.g. IRSA or GCP Workload Identity
+                        then this audiences will be appended to the list
+                      items:
+                        type: string
+                      type: array
                     name:
-                      description: The name of the Secret resource being referred to.
+                      description: The name of the ServiceAccount resource being referred to.
                       maxLength: 253
                       minLength: 1
                       pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                       type: string
                     namespace:
                       description: |-
-                        The namespace of the Secret resource being referred to.
+                        Namespace of the resource being referred to.
                         Ignored if referent is not cluster-scoped, otherwise defaults to the namespace of the referent.
                       maxLength: 63
                       minLength: 1
                       pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                       type: string
+                  required:
+                    - name
                   type: object
-                timePeriod:
-                  description: TimePeriod defines how long the token can be active. Defaults to 30 seconds.
-                  type: integer
-                when:
-                  description: When defines a time parameter that can be used to pin the origin time of the generated token.
-                  format: date-time
+                url:
+                  description: URL configures the Quay instance URL. Defaults to quay.io.
                   type: string
               required:
-                - secret
+                - robotAccount
+                - serviceAccountRef
               type: object
           type: object
       served: true
       storage: true
       subresources:
         status: {}
+
+{{- end }}

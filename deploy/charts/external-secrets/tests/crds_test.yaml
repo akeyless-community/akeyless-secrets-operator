@@ -1,12 +1,18 @@
 suite: test crds
 templates:
-  - crds/secretstore.yaml
+  - crds/akeylesssecretstore.yaml
 tests:
   - it: should match snapshot of default values
+    set:
+      installCRDs: true
+      crds.createAkeylessSecretStore: true
     asserts:
       - matchSnapshot: {}
+
   - it: should disable conversion webhook
     set:
+      installCRDs: true
+      crds.createAkeylessSecretStore: true
       crds.conversion.enabled: false
     asserts:
       - isNull:
@@ -14,6 +20,8 @@ tests:
 
   - it: should add annotations
     set:
+      installCRDs: true
+      crds.createAkeylessSecretStore: true
       crds:
         annotations:
           foo: bar
