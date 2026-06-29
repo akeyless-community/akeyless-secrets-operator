@@ -407,6 +407,9 @@
         "createOperator": {
             "type": "boolean"
         },
+        "processGeneratorState": {
+            "type": "boolean"
+        },
         "deploymentAnnotations": {
             "type": "object"
         },

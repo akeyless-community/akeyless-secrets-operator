@@ -485,3 +485,17 @@ tests:
           path: spec.template.spec.containers[0].args
           content: "--store-requeue-interval=30s"
 
+  - it: should disable GeneratorState controller by default
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--enable-generator-state=false"
+
+  - it: should enable GeneratorState controller when processGeneratorState is true
+    set:
+      processGeneratorState: true
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].args
+          content: "--enable-generator-state=false"
+

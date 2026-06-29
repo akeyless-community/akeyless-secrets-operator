@@ -161,6 +161,9 @@ processClusterAkeylessSecretStore: true
 # -- Enable legacy external-secrets.io ExternalSecret reconciliation.
 processLegacyExternalSecret: false
 
+# -- Enable GeneratorState controller (requires generators.external-secrets.io GeneratorState CRD).
+processGeneratorState: false
+
 # -- Akeyless event webhook receives change notifications and triggers immediate sync.
 akeylessWebhook:
   # -- Enable the Akeyless event webhook HTTP server on the operator pod.
