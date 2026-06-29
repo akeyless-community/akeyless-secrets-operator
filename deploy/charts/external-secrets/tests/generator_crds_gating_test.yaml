@@ -1,0 +1,21 @@
+suite: test generator crd gating
+templates:
+  - crds/acraccesstoken.yaml
+tests:
+  - it: should not install generator CRDs by default
+    set:
+      installCRDs: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should install generator CRDs when explicitly enabled
+    set:
+      installCRDs: true
+      crds.createGenerators: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: acraccesstokens.generators.external-secrets.io

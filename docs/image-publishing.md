@@ -106,6 +106,10 @@ helm upgrade --install akeyless-secrets-operator \
 
 Edit `docs/examples/helm-values-scoped.example.yaml` to match your image and scope before applying.
 
+### Co-existing with External Secrets Operator
+
+When ESO is already installed, use the chart defaults — only the four `secrets.akeyless.io` CRDs are installed. Legacy ESO generator and `external-secrets.io` CRDs are disabled (`crds.createGenerators: false`, `crds.createExternalSecret: false`, etc.) so Helm does not try to adopt CRDs owned by the existing `external-secrets` release.
+
 ---
 
 ## Example manifests

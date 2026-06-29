@@ -375,6 +375,24 @@
                 "createClusterSecretStore": {
                     "type": "boolean"
                 },
+                "createExternalSecret": {
+                    "type": "boolean"
+                },
+                "createGenerators": {
+                    "type": "boolean"
+                },
+                "createAkeylessSecret": {
+                    "type": "boolean"
+                },
+                "createAkeylessDynamicSecret": {
+                    "type": "boolean"
+                },
+                "createAkeylessSecretStore": {
+                    "type": "boolean"
+                },
+                "createClusterAkeylessSecretStore": {
+                    "type": "boolean"
+                },
                 "createPushSecret": {
                     "type": "boolean"
                 },

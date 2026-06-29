@@ -1,0 +1,21 @@
+suite: test legacy crd gating
+templates:
+  - crds/externalsecret.yaml
+tests:
+  - it: should not install legacy ExternalSecret CRD by default
+    set:
+      installCRDs: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should install legacy ExternalSecret CRD when explicitly enabled
+    set:
+      installCRDs: true
+      crds.createExternalSecret: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: externalsecrets.external-secrets.io
