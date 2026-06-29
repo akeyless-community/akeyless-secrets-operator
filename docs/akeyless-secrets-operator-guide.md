@@ -33,6 +33,8 @@ Legacy `external-secrets.io` resources (`ExternalSecret`, `SecretStore`, etc.) a
 
 ## Installation
 
+> **Step-by-step walkthrough:** [Getting Started Manual](getting-started.md) — install, configure, verify, and troubleshoot.
+
 ### Prerequisites
 
 - Kubernetes 1.25+
@@ -444,5 +446,6 @@ Enable legacy reconciliation temporarily with `--enable-legacy-external-secrets-
 
 ## Related documentation
 
+- [Getting Started Manual](getting-started.md) — step-by-step install and troubleshooting
 - [Build and install from source](image-publishing.md)
-- [Example manifests](../docs/examples/)
+- [Example manifests](examples/)
