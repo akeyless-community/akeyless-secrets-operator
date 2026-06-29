@@ -97,7 +97,7 @@ make reviewable     # full PR gate (generate, lint, tests, CRD snapshots)
 
 ## Container image
 
-See [docs/image-publishing.md](docs/image-publishing.md) for installing from GHCR and publishing releases under `akeyless-community`.
+Build and install from source — see [docs/image-publishing.md](docs/image-publishing.md) for building the image, pushing to your registry, and installing with the local Helm chart.
 
 Example manifests: [docs/examples/](docs/examples/).
 
