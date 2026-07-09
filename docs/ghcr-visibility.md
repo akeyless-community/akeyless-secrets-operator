@@ -52,6 +52,19 @@ helm show chart oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operato
 
 A `403 Forbidden` on `helm install oci://...` almost always means the chart package is still private.
 
+## Publish chart 0.1.1 and mark GitHub release as latest
+
+The container image `v0.1.1` can exist while the Helm chart is still `0.1.0` if the release workflow ran before [PR #34](https://github.com/akeyless-community/akeyless-secrets-operator/pull/34) was merged.
+
+1. **Merge PR #34** (GHCR image defaults + chart version bump in release workflow)
+2. **Actions** → **Release** → **Run workflow** → input tag `v0.1.1` → wait for success
+3. Verify chart: `helm show chart oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator --version 0.1.1`
+4. **Releases** → create or edit `v0.1.1` → check **Set as the latest release**
+
+```bash
+gh release create v0.1.1 --title v0.1.1 --notes "Public OCI install" --latest
+```
+
 ## After flipping visibility
 
 1. Cut or re-run a release so image + chart are published (GitHub → **Releases** → publish, or **Actions** → **Release** → **Run workflow** with tag e.g. `v0.1.1`)

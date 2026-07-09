@@ -40,12 +40,23 @@ Install from the published OCI chart on GHCR (same pattern as External Secrets O
 ```bash
 helm install akeyless-secrets-operator \
   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
-  --version 0.1.0 \
+  --version 0.1.1 \
   -n akeyless-secrets-operator \
   --create-namespace
 ```
 
-No local clone or image build is required. The chart pulls `ghcr.io/akeyless-community/akeyless-secrets-operator` at the chart `appVersion`.
+No local clone or image build is required. The chart pulls `ghcr.io/akeyless-community/akeyless-secrets-operator:v0.1.1` by default.
+
+> **Until chart `0.1.1` is published to GHCR**, use chart `0.1.0` with explicit image settings:
+> ```bash
+> helm install akeyless-secrets-operator \
+>   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
+>   --version 0.1.0 \
+>   -n akeyless-secrets-operator --create-namespace \
+>   --set image.repository=ghcr.io/akeyless-community/akeyless-secrets-operator \
+>   --set image.tag=v0.1.1 \
+>   --set processGeneratorState=false
+> ```
 
 Choose **one** variant if your cluster already has related resources:
 
@@ -64,7 +75,7 @@ If you previously ran `kubectl apply` for Akeyless CRDs, install **without** CRD
 ```bash
 helm install akeyless-secrets-operator \
   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
-  --version 0.1.0 \
+  --version 0.1.1 \
   -n akeyless-secrets-operator --create-namespace \
   --set installCRDs=false
 ```
@@ -344,7 +355,7 @@ missing key "app.kubernetes.io/managed-by": must be set to "Helm"
 ```bash
 helm install akeyless-secrets-operator \
   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
-  --version 0.1.0 \
+  --version 0.1.1 \
   -n akeyless-secrets-operator --create-namespace \
   --set installCRDs=false
 ```
@@ -394,7 +405,7 @@ failed to wait for generatorstate caches to sync
 ```bash
 helm upgrade akeyless-secrets-operator \
   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
-  --version 0.1.0 \
+  --version 0.1.1 \
   -n akeyless-secrets-operator \
   --reuse-values \
   --set installCRDs=false \
@@ -415,7 +426,7 @@ kubectl patch deployment akeyless-secrets-operator -n akeyless-secrets-operator 
 
 **Fix:**
 
-- Confirm image exists: `docker pull ghcr.io/akeyless-community/akeyless-secrets-operator:v0.1.0`
+- Confirm image exists: `docker pull ghcr.io/akeyless-community/akeyless-secrets-operator:v0.1.1`
 - If GHCR is private, make packages public ([ghcr-visibility.md](ghcr-visibility.md)) or add `imagePullSecrets`
 - Confirm `image.repository` and `image.tag` in Helm values
 
@@ -490,7 +501,7 @@ If you patched the deployment manually (e.g. `--enable-generator-state=false`) a
 ```bash
 helm upgrade akeyless-secrets-operator \
   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
-  --version 0.1.0 \
+  --version 0.1.1 \
   -n akeyless-secrets-operator \
   --reuse-values \
   --set processGeneratorState=false

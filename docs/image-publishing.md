@@ -7,7 +7,7 @@ No local build required. Install the published Helm chart and image from GitHub 
 ```bash
 helm install akeyless-secrets-operator \
   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
-  --version 0.1.0 \
+  --version 0.1.1 \
   -n akeyless-secrets-operator \
   --create-namespace
 ```
@@ -20,13 +20,13 @@ The chart defaults pull `ghcr.io/akeyless-community/akeyless-secrets-operator` a
 # Default — install Akeyless CRDs (not legacy ESO CRDs)
 helm install akeyless-secrets-operator \
   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
-  --version 0.1.0 \
+  --version 0.1.1 \
   -n akeyless-secrets-operator --create-namespace
 
 # CRDs already applied manually — skip CRD install
 helm install akeyless-secrets-operator \
   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
-  --version 0.1.0 \
+  --version 0.1.1 \
   -n akeyless-secrets-operator --create-namespace \
   --set installCRDs=false
 ```
@@ -44,7 +44,7 @@ GHCR packages are private until a maintainer sets them to **public**. See [ghcr-
 ```bash
 helm install akeyless-secrets-operator \
   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
-  --version 0.1.0 \
+  --version 0.1.1 \
   -f docs/examples/helm-values-scoped.example.yaml \
   -n my-app --create-namespace
 ```
