@@ -2,6 +2,28 @@
 
 Every **public** repository in the `akeyless-community` org must follow this baseline before we announce or accept external contributions.
 
+## Why does this live in `akeyless-secrets-operator`?
+
+This repository is the **reference implementation** for org-wide standards — not because the script is operator-specific. The operator was the first public community repo, so it hosts:
+
+| Artifact | Purpose |
+|----------|---------|
+| `scripts/configure-github-protection.sh` | Canonical script — copy to new repos or run remotely with `REPO=<name>` |
+| `docs/repository-standards.md` | Policy doc — copy to new repos |
+| `.github/CODEOWNERS` | Template for team review routing |
+
+**For a new public repo**, either:
+
+1. **Copy** `scripts/configure-github-protection.sh` and `docs/repository-standards.md` into the new repo, then run locally, or
+2. **Run remotely** from a clone of this repo:
+   ```bash
+   OWNER=akeyless-community REPO=<new-repo> ./scripts/configure-github-protection.sh
+   ```
+
+The script is **idempotent** — safe to re-run on repos that are already public (including this one) to refresh settings after policy changes.
+
+> **Note:** GitHub only allows push restrictions and some protection features on **public** repositories in our org tier. The prerequisite is that the **target** repo visibility is public — not that you run the script only once at go-live.
+
 ## Goals
 
 - **Public read, team write** — anyone can fork and open PRs; only org teams merge to `main`
@@ -18,13 +40,13 @@ Every **public** repository in the `akeyless-community` org must follow this bas
 
 ## One-command setup
 
-From the repository root (after the repo is **public**):
+From the repository root (target repo must be **public**):
 
 ```bash
 ./scripts/configure-github-protection.sh
 ```
 
-For another repo:
+For another repo (run from this clone):
 
 ```bash
 OWNER=akeyless-community REPO=<repo-name> ./scripts/configure-github-protection.sh

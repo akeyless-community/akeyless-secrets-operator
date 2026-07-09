@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
-# Configure GitHub repository protections for akeyless-community public repos.
+# Canonical GitHub protection script for akeyless-community PUBLIC repositories.
 #
-# Enforces team-only merges on the default branch via classic branch protection
-# AND a self-sufficient ruleset (CI gate, PR reviews, push restriction).
-# CODEOWNERS auto-requests reviewers when present; optional mandatory flag.
+# This copy lives in akeyless-secrets-operator as the reference implementation.
+# New public repos should copy scripts/configure-github-protection.sh (and
+# docs/repository-standards.md) from here, or run it remotely:
 #
-# Run AFTER the repository is public. Some features are unavailable on
-# private repos in the akeyless-community org (GitHub Free plan).
+#   git clone https://github.com/akeyless-community/akeyless-secrets-operator.git
+#   cd akeyless-secrets-operator
+#   OWNER=akeyless-community REPO=<other-repo> ./scripts/configure-github-protection.sh
 #
-# Usage:
+# Safe to re-run on already-public repos (idempotent). GitHub requires the
+# TARGET repository to be public — branch protection restrictions are not
+# available on private repos in this org (GitHub Free plan).
+#
+# Usage (this repo):
 #   ./scripts/configure-github-protection.sh
 #   ./scripts/configure-github-protection.sh --dry-run
-#   OWNER=akeyless-community REPO=my-repo MERGE_TEAM=cs-admin ./scripts/configure-github-protection.sh
+#
+# Usage (another repo):
+#   OWNER=akeyless-community REPO=my-repo ./scripts/configure-github-protection.sh
 set -euo pipefail
 
 OWNER="${OWNER:-akeyless-community}"
