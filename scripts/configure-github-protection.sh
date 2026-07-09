@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
-# Configure GitHub repository protections for akeyless-secrets-operator.
+# Configure GitHub repository protections for akeyless-community public repos.
 #
-# Run AFTER the repository is public. Branch protection and several security
-# features are unavailable on private repos in the akeyless-community org
-# (GitHub Free plan).
+# Enforces team-only merges on the default branch: required PR reviews,
+# CODEOWNERS, CI checks, and push restrictions to the merge team.
+#
+# Run AFTER the repository is public. Some features are unavailable on
+# private repos in the akeyless-community org (GitHub Free plan).
 #
 # Usage:
 #   ./scripts/configure-github-protection.sh
 #   ./scripts/configure-github-protection.sh --dry-run
+#   OWNER=akeyless-community REPO=my-repo MERGE_TEAM=cs-admin ./scripts/configure-github-protection.sh
 set -euo pipefail
 
-OWNER="akeyless-community"
-REPO="akeyless-secrets-operator"
-BRANCH="main"
+OWNER="${OWNER:-akeyless-community}"
+REPO="${REPO:-akeyless-secrets-operator}"
+BRANCH="${BRANCH:-main}"
+MERGE_TEAM="${MERGE_TEAM:-cs-admin}"
+REVIEW_TEAM="${REVIEW_TEAM:-security}"
+REQUIRED_REVIEWS="${REQUIRED_REVIEWS:-1}"
+CI_CHECK="${CI_CHECK:-test-and-build}"
 DRY_RUN=0
 
 if [[ "${1:-}" == "--dry-run" ]]; then
@@ -29,6 +36,7 @@ run() {
 }
 
 echo "Target: ${OWNER}/${REPO} (branch: ${BRANCH})"
+echo "Merge team: @${OWNER}/${MERGE_TEAM} | Reviews required: ${REQUIRED_REVIEWS}"
 echo
 
 visibility="$(gh api "repos/${OWNER}/${REPO}" --jq .visibility)"
@@ -40,7 +48,24 @@ if [[ "$visibility" != "public" ]]; then
   exit 1
 fi
 
-echo "1/5 Tightening GitHub Actions permissions..."
+echo "1/6 Granting team access to the repository..."
+for team in "$MERGE_TEAM" "$REVIEW_TEAM"; do
+  permission="maintain"
+  if [[ "$team" == "$REVIEW_TEAM" && "$team" != "$MERGE_TEAM" ]]; then
+    permission="triage"
+  fi
+  if run gh api \
+    --method PUT \
+    "orgs/${OWNER}/teams/${team}/repos/${OWNER}/${REPO}" \
+    -f permission="$permission" 2>/dev/null; then
+    echo "  @${OWNER}/${team} → ${permission}"
+  else
+    echo "  WARN: could not set @${OWNER}/${team} access (needs org admin: gh auth refresh -s admin:org)"
+    echo "        Manually: Settings → Collaborators and teams → add @${OWNER}/${team} with ${permission}"
+  fi
+done
+
+echo "2/6 Tightening GitHub Actions permissions..."
 run gh api \
   --method PUT \
   -H "Accept: application/vnd.github+json" \
@@ -74,7 +99,7 @@ run gh api \
 }
 EOF
 
-echo "2/5 Enabling security analysis features..."
+echo "3/6 Enabling security analysis features..."
 run gh api \
   --method PATCH \
   -H "Accept: application/vnd.github+json" \
@@ -91,35 +116,46 @@ run gh api \
 }
 EOF
 
-echo "3/5 Applying branch protection on ${BRANCH}..."
-run gh api \
-  --method PUT \
-  -H "Accept: application/vnd.github+json" \
-  "repos/${OWNER}/${REPO}/branches/${BRANCH}/protection" \
-  --input - <<'EOF'
+echo "4/6 Applying branch protection on ${BRANCH} (team-only push + required reviews)..."
+protection_payload="$(cat <<EOF
 {
   "required_status_checks": {
     "strict": true,
     "contexts": [
-      "test-and-build"
+      "${CI_CHECK}"
     ]
   },
-  "enforce_admins": false,
+  "enforce_admins": true,
   "required_pull_request_reviews": {
     "dismiss_stale_reviews": true,
-    "require_code_owner_reviews": false,
-    "required_approving_review_count": 0,
-    "require_last_push_approval": false
+    "require_code_owner_reviews": true,
+    "required_approving_review_count": ${REQUIRED_REVIEWS},
+    "require_last_push_approval": true
   },
+  "required_conversation_resolution": true,
   "required_linear_history": true,
   "allow_force_pushes": false,
   "allow_deletions": false,
   "block_creations": false,
-  "restrictions": null
+  "restrictions": {
+    "users": [],
+    "teams": ["${MERGE_TEAM}"],
+    "apps": []
+  }
 }
 EOF
+)"
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  printf 'DRY RUN: apply branch protection\n%s\n' "$protection_payload"
+else
+  printf '%s' "$protection_payload" | gh api \
+    --method PUT \
+    -H "Accept: application/vnd.github+json" \
+    "repos/${OWNER}/${REPO}/branches/${BRANCH}/protection" \
+    --input -
+fi
 
-echo "4/5 Upserting repository ruleset (no force-push, no signed commits required)..."
+echo "5/6 Upserting repository ruleset..."
 ruleset_id="$(gh api "repos/${OWNER}/${REPO}/rulesets" --jq '.[] | select(.name == "Protect '"${BRANCH}"'") | .id' 2>/dev/null | head -1 || true)"
 ruleset_payload="$(cat <<EOF
 {
@@ -133,7 +169,17 @@ ruleset_payload="$(cat <<EOF
     }
   },
   "rules": [
-    { "type": "non_fast_forward" }
+    { "type": "non_fast_forward" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": ${REQUIRED_REVIEWS},
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_review": true,
+        "require_last_push_approval": true,
+        "required_review_thread_resolution": true
+      }
+    }
   ]
 }
 EOF
@@ -157,24 +203,32 @@ else
     --input - <<<"$ruleset_payload"
 fi
 
-echo "5/5 Verifying repository settings..."
+echo "6/6 Verifying repository settings..."
 gh api "repos/${OWNER}/${REPO}" --jq '{visibility, delete_branch_on_merge, allow_forking}'
-gh api "repos/${OWNER}/${REPO}/actions/permissions" --jq .
-gh api "repos/${OWNER}/${REPO}/actions/permissions/workflow" --jq .
-gh api "repos/${OWNER}/${REPO}/branches/${BRANCH}/protection" --jq '{required_pull_request_reviews, enforce_admins, required_status_checks}' || true
+gh api "repos/${OWNER}/${REPO}/branches/${BRANCH}/protection" --jq '{
+  required_approving_review_count: .required_pull_request_reviews.required_approving_review_count,
+  require_code_owner_reviews: .required_pull_request_reviews.require_code_owner_reviews,
+  enforce_admins: .enforce_admins.enabled,
+  restrictions: .restrictions
+}' || true
 
-cat <<'EOF'
+cat <<EOF
 
 Done.
+
+Team merge policy on ${BRANCH}:
+  - Direct pushes: only @${OWNER}/${MERGE_TEAM}
+  - Merges: PR required, ${REQUIRED_REVIEWS}+ approving review(s), CODEOWNERS approval
+  - CI: ${CI_CHECK} must pass
+  - Fork PRs: external contributors cannot merge (no write access)
+
+Apply this standard to every new public repo:
+  OWNER=${OWNER} REPO=<repo-name> ./scripts/configure-github-protection.sh
+
+See docs/repository-standards.md for the full checklist.
 
 Manual follow-ups (Settings UI):
   - Settings → General → Pull Requests: enable "Automatically delete head branches"
   - Settings → General → Features: disable Wiki if unused
-  - Settings → Collaborators and teams: confirm @akeyless-community/cs-admin and @akeyless-community/security have appropriate access
-  - Re-run CodeQL once (Actions → CodeQL Advanced → Run workflow) to confirm GHAS is active
-
-Pre-public hygiene:
-  - Run: gitleaks detect --source . --redact
-  - Review docs/examples/ for placeholder credentials before publishing
-  - Confirm no real credentials in git history
+  - Add .github/CODEOWNERS with @${OWNER}/${MERGE_TEAM} as default owners
 EOF
