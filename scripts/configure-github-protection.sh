@@ -2,7 +2,8 @@
 # Configure GitHub repository protections for akeyless-community public repos.
 #
 # Enforces team-only merges on the default branch: required PR reviews,
-# CODEOWNERS, CI checks, and push restrictions to the merge team.
+# CI checks, and push restrictions to the merge team. CODEOWNERS may still
+# auto-request reviewers but is not required to merge unless enabled.
 #
 # Run AFTER the repository is public. Some features are unavailable on
 # private repos in the akeyless-community org (GitHub Free plan).
@@ -19,6 +20,7 @@ BRANCH="${BRANCH:-main}"
 MERGE_TEAM="${MERGE_TEAM:-cs-admin}"
 REVIEW_TEAM="${REVIEW_TEAM:-security}"
 REQUIRED_REVIEWS="${REQUIRED_REVIEWS:-1}"
+REQUIRE_CODE_OWNER_REVIEWS="${REQUIRE_CODE_OWNER_REVIEWS:-false}"
 CI_CHECK="${CI_CHECK:-test-and-build}"
 DRY_RUN=0
 
@@ -36,7 +38,7 @@ run() {
 }
 
 echo "Target: ${OWNER}/${REPO} (branch: ${BRANCH})"
-echo "Merge team: @${OWNER}/${MERGE_TEAM} | Reviews required: ${REQUIRED_REVIEWS}"
+echo "Merge team: @${OWNER}/${MERGE_TEAM} | Reviews required: ${REQUIRED_REVIEWS} | CODEOWNERS required: ${REQUIRE_CODE_OWNER_REVIEWS}"
 echo
 
 visibility="$(gh api "repos/${OWNER}/${REPO}" --jq .visibility)"
@@ -128,7 +130,7 @@ protection_payload="$(cat <<EOF
   "enforce_admins": true,
   "required_pull_request_reviews": {
     "dismiss_stale_reviews": true,
-    "require_code_owner_reviews": true,
+    "require_code_owner_reviews": ${REQUIRE_CODE_OWNER_REVIEWS},
     "required_approving_review_count": ${REQUIRED_REVIEWS},
     "require_last_push_approval": true
   },
@@ -175,7 +177,7 @@ ruleset_payload="$(cat <<EOF
       "parameters": {
         "required_approving_review_count": ${REQUIRED_REVIEWS},
         "dismiss_stale_reviews_on_push": true,
-        "require_code_owner_review": true,
+        "require_code_owner_review": ${REQUIRE_CODE_OWNER_REVIEWS},
         "require_last_push_approval": true,
         "required_review_thread_resolution": true
       }
@@ -218,7 +220,7 @@ Done.
 
 Team merge policy on ${BRANCH}:
   - Direct pushes: only @${OWNER}/${MERGE_TEAM}
-  - Merges: PR required, ${REQUIRED_REVIEWS}+ approving review(s), CODEOWNERS approval
+  - Merges: PR required, ${REQUIRED_REVIEWS}+ approving review(s) from any reviewer with write access
   - CI: ${CI_CHECK} must pass
   - Fork PRs: external contributors cannot merge (no write access)
 
@@ -230,5 +232,5 @@ See docs/repository-standards.md for the full checklist.
 Manual follow-ups (Settings UI):
   - Settings → General → Pull Requests: enable "Automatically delete head branches"
   - Settings → General → Features: disable Wiki if unused
-  - Add .github/CODEOWNERS with @${OWNER}/${MERGE_TEAM} as default owners
+  - Add .github/CODEOWNERS to auto-request reviews (optional; not required to merge by default)
 EOF

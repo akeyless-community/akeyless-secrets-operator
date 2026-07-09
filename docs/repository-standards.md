@@ -5,7 +5,7 @@ Every **public** repository in the `akeyless-community` org must follow this bas
 ## Goals
 
 - **Public read, team write** — anyone can fork and open PRs; only org teams merge to `main`
-- **Review before merge** — no self-merge without approval; CODEOWNERS enforced
+- **Review before merge** — no self-merge without approval from any eligible reviewer
 - **CI gate** — required checks must pass
 - **Supply chain hygiene** — secret scanning, dependency alerts, restricted Actions permissions
 
@@ -13,8 +13,8 @@ Every **public** repository in the `akeyless-community` org must follow this bas
 
 | Team | Role |
 |------|------|
-| `@akeyless-community/cs-admin` | Default merge team — maintain access, CODEOWNERS for most paths |
-| `@akeyless-community/security` | Security-sensitive paths (workflows, deploy, CRDs) |
+| `@akeyless-community/cs-admin` | Default merge team — maintain access, default CODEOWNERS for most paths |
+| `@akeyless-community/security` | Security-sensitive paths (workflows, deploy, CRDs) — auto-requested, not required to merge |
 
 ## One-command setup
 
@@ -42,8 +42,8 @@ Dry run:
 2. **Actions** — selected actions only; workflows default to read-only token
 3. **Security analysis** — dependency graph, Dependabot, secret scanning + push protection
 4. **Branch protection on `main`**:
-   - Required PR with **1+ approving review**
-   - **CODEOWNERS** review required
+   - Required PR with **1+ approving review** (any eligible reviewer)
+   - **CODEOWNERS not required** to merge (still auto-requests reviewers)
    - **Re-approval** after new commits
    - **Conversation resolution** required
    - **CI check** must pass (`test-and-build` by default)
@@ -55,7 +55,7 @@ Dry run:
 
 | File | Purpose |
 |------|---------|
-| `.github/CODEOWNERS` | Auto-request reviews from `cs-admin` / `security` |
+| `.github/CODEOWNERS` | Auto-request reviews from `cs-admin` / `security` (optional for merge) |
 | `.github/workflows/ci.yml` | CI job named `test-and-build` (or set `CI_CHECK` env var) |
 | `scripts/configure-github-protection.sh` | Copy from this repo or symlink |
 | `SECURITY.md` | Vulnerability reporting |
@@ -105,6 +105,7 @@ Environment variables for `configure-github-protection.sh`:
 | `MERGE_TEAM` | `cs-admin` | Team slug allowed to push to `main` |
 | `REVIEW_TEAM` | `security` | Secondary team granted triage access |
 | `REQUIRED_REVIEWS` | `1` | Minimum approving reviews |
+| `REQUIRE_CODE_OWNER_REVIEWS` | `false` | Set `true` to require CODEOWNERS approval before merge |
 | `CI_CHECK` | `test-and-build` | Required status check context |
 
 ## Troubleshooting
@@ -114,4 +115,5 @@ Environment variables for `configure-github-protection.sh`:
 | Script cannot set team access | Org admin runs `gh auth refresh -h github.com -s admin:org`, or set teams manually in Settings |
 | `restrictions` API fails | Repo must be public; org may need GitHub Team plan for some private-repo features |
 | PR merges without review | Re-run script; confirm `required_approving_review_count` ≥ 1 |
-| CODEOWNERS not requested | File must exist on `main`; enable `require_code_owner_reviews` |
+| CODEOWNERS not requested | File must exist on `main`; GitHub auto-requests owners when present |
+| Want mandatory CODEOWNERS | Re-run with `REQUIRE_CODE_OWNER_REVIEWS=true` |
