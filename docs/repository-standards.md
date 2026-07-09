@@ -5,7 +5,7 @@ Every **public** repository in the `akeyless-community` org must follow this bas
 ## Goals
 
 - **Public read, team write** — anyone can fork and open PRs; only org teams merge to `main`
-- **Review before merge** — no self-merge without approval from any eligible reviewer
+- **Review before merge** — PR required with approval from `@akeyless-community/cs-admin` (not arbitrary public accounts)
 - **CI gate** — required checks must pass
 - **Supply chain hygiene** — secret scanning, dependency alerts, restricted Actions permissions
 
@@ -41,21 +41,25 @@ Dry run:
 1. **Team access** — `cs-admin` (maintain), `security` (triage)
 2. **Actions** — selected actions only; workflows default to read-only token
 3. **Security analysis** — dependency graph, Dependabot, secret scanning + push protection
-4. **Branch protection on `main`**:
-   - Required PR with **1+ approving review** (any eligible reviewer)
-   - **CODEOWNERS not required** to merge (still auto-requests reviewers)
-   - **Re-approval** after new commits
-   - **Conversation resolution** required
+4. **Branch protection on `main`** (classic layer):
+   - Required PR with **1+ approving review**
+   - **Re-approval** after new commits; **conversation resolution** required
    - **CI check** must pass (`test-and-build` by default)
    - **Push restricted** to `@akeyless-community/cs-admin` only
    - **Admins included** in rules (`enforce_admins: true`)
-5. **Ruleset** — no force-push; pull request rules mirrored
+   - **CODEOWNERS not required** to merge by default (`REQUIRE_CODE_OWNER_REVIEWS=false`)
+5. **Ruleset on `main`** (self-sufficient layer — does not rely on classic protection alone):
+   - `non_fast_forward` — no force-push
+   - `update` — block direct pushes (PR path required)
+   - `pull_request` — reviews + **required reviewer team** (`cs-admin` for all paths)
+   - `required_status_checks` — same CI gate as branch protection
+6. **Verification** — script **exits with error** if branch protection or ruleset is incomplete after apply
 
 ## Required files in each repo
 
 | File | Purpose |
 |------|---------|
-| `.github/CODEOWNERS` | Auto-request reviews from `cs-admin` / `security` (optional for merge) |
+| `.github/CODEOWNERS` | **Required on `main`** — auto-requests reviewers; mandatory only if `REQUIRE_CODE_OWNER_REVIEWS=true` |
 | `.github/workflows/ci.yml` | CI job named `test-and-build` (or set `CI_CHECK` env var) |
 | `scripts/configure-github-protection.sh` | Copy from this repo or symlink |
 | `SECURITY.md` | Vulnerability reporting |
@@ -75,10 +79,8 @@ deploy/             @akeyless-community/security
 ## New public repo checklist
 
 - [ ] Repository visibility → **Public**
-- [ ] Run `./scripts/configure-github-protection.sh`
-- [ ] Confirm `@akeyless-community/cs-admin` has **Maintain** on the repo
-- [ ] Confirm `@akeyless-community/security` has **Triage** (or Maintain for security-heavy repos)
-- [ ] Add `.github/CODEOWNERS`
+- [ ] Add `.github/CODEOWNERS` **before** running the protection script
+- [ ] Run `./scripts/configure-github-protection.sh` (fails loudly if protection incomplete)
 - [ ] CI workflow exposes required check name (default: `test-and-build`)
 - [ ] Enable **Automatically delete head branches** (Settings → General → Pull Requests)
 - [ ] Run `gitleaks detect --source . --redact` before first public push
@@ -88,9 +90,9 @@ deploy/             @akeyless-community/security
 
 | Actor | Can merge to `main`? |
 |-------|----------------------|
-| External contributor (fork PR) | **No** — needs team member approval + CI |
-| Org member not in `cs-admin` | **No** — unless added to merge team or given bypass (avoid) |
-| `cs-admin` team member | **Yes** — after review + CI (cannot self-approve own PR if last-push approval is on) |
+| External contributor (fork PR) | **No** — needs `cs-admin` team approval + CI |
+| Org member not in `cs-admin` | **No** — ruleset `required_reviewers` blocks merge without team approval |
+| `cs-admin` team member | **Yes** — after team review + CI (re-approval required on new commits) |
 | Admin with bypass | **Avoid** — `enforce_admins: true` applies rules to admins too |
 
 ## Customization
@@ -112,8 +114,8 @@ Environment variables for `configure-github-protection.sh`:
 
 | Issue | Fix |
 |-------|-----|
-| Script cannot set team access | Org admin runs `gh auth refresh -h github.com -s admin:org`, or set teams manually in Settings |
-| `restrictions` API fails | Repo must be public; org may need GitHub Team plan for some private-repo features |
-| PR merges without review | Re-run script; confirm `required_approving_review_count` ≥ 1 |
-| CODEOWNERS not requested | File must exist on `main`; GitHub auto-requests owners when present |
-| Want mandatory CODEOWNERS | Re-run with `REQUIRE_CODE_OWNER_REVIEWS=true` |
+| Script exits after step 4 | Branch protection failed to apply — check org admin scope / plan tier |
+| Ruleset incomplete error | Re-run script; confirm `required_status_checks` and `update` rules present |
+| PR merges without review | Re-run script; ruleset `required_reviewers` must include merge team |
+| CODEOWNERS not requested | File must exist on `main` before protection run |
+| Want mandatory CODEOWNERS | Set `REQUIRE_CODE_OWNER_REVIEWS=true` (script errors if CODEOWNERS missing) |
