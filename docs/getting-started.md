@@ -26,97 +26,58 @@ The operator runs in your cluster and:
 ## Prerequisites
 
 - Kubernetes **1.25+**
-- **Helm 3.x**
-- **Docker** (to build the operator image)
+- **Helm 3.8+** (OCI chart support)
 - Network from the cluster to Akeyless (`https://api.akeyless.io` or your Gateway URL)
 - Akeyless credentials with **read** access to target items
-- Tools: `kubectl`, `git`, `make`, `helm`
+- Tools: `kubectl`, `helm`
 
 ---
 
-## Step 1 — Clone the repository
+## Step 1 — Install the operator with Helm
+
+Install from the published OCI chart on GHCR (same pattern as External Secrets Operator):
 
 ```bash
-git clone https://github.com/akeyless-community/akeyless-secrets-operator.git
-cd akeyless-secrets-operator
-git pull origin main   # use latest chart defaults and docs
+helm install akeyless-secrets-operator \
+  oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
+  --version 0.1.1 \
+  -n akeyless-secrets-operator \
+  --create-namespace
 ```
 
-There is **no public chart or image registry**. You build the image yourself and install from `./deploy/charts/external-secrets`.
+No local clone or image build is required. The chart pulls `ghcr.io/akeyless-community/akeyless-secrets-operator:v0.1.1` by default.
 
----
+> **Until chart `0.1.1` is published to GHCR**, use chart `0.1.0` with explicit image settings:
+> ```bash
+> helm install akeyless-secrets-operator \
+>   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
+>   --version 0.1.0 \
+>   -n akeyless-secrets-operator --create-namespace \
+>   --set image.repository=ghcr.io/akeyless-community/akeyless-secrets-operator \
+>   --set image.tag=v0.1.1 \
+>   --set processGeneratorState=false
+> ```
 
-## Step 2 — Build and push the operator image
+Choose **one** variant if your cluster already has related resources:
 
-From the repository root:
+### Path A — Fresh cluster (default)
 
-```bash
-# Most cloud clusters (AKS, EKS, GKE on amd64)
-ARCH=amd64 make build-amd64
-docker build --platform linux/amd64 -f Dockerfile \
-  -t docker.io/<your-user>/akeyless-secrets-operator:dev .
-
-docker login
-docker push docker.io/<your-user>/akeyless-secrets-operator:dev
-```
-
-For **arm64** nodes (Graviton, Apple Silicon clusters):
-
-```bash
-ARCH=arm64 make build-arm64
-docker build --platform linux/arm64 -f Dockerfile \
-  -t docker.io/<your-user>/akeyless-secrets-operator:dev .
-docker push docker.io/<your-user>/akeyless-secrets-operator:dev
-```
-
-### Private registry
-
-If your registry requires authentication:
-
-```bash
-kubectl create secret docker-registry akeyless-operator-registry \
-  --docker-server=<registry-host> \
-  --docker-username=<user> \
-  --docker-password=<token> \
-  -n akeyless-secrets-operator
-```
-
-Pass it to Helm: `--set imagePullSecrets[0].name=akeyless-operator-registry`
-
----
-
-## Step 3 — Install the operator with Helm
-
-Choose **one** install path based on your cluster.
-
-### Path A — Fresh cluster (no ESO, no Akeyless CRDs yet)
-
-```bash
-helm upgrade --install akeyless-secrets-operator \
-  ./deploy/charts/external-secrets \
-  --namespace akeyless-secrets-operator --create-namespace \
-  --set installCRDs=true \
-  --set image.repository=docker.io/<your-user>/akeyless-secrets-operator \
-  --set image.tag=dev
-```
-
-This installs **only the four Akeyless CRDs** by default (not legacy External Secrets CRDs).
+Use the command above. It installs **only the four Akeyless CRDs** (not legacy External Secrets CRDs).
 
 ### Path B — External Secrets Operator already installed
 
-If ESO runs in another namespace (e.g. `external-secrets`), use the same command as Path A. Chart defaults skip legacy ESO CRDs so Helm does not conflict with the existing ESO release.
+Use the same command as Path A. Chart defaults skip legacy ESO CRDs so Helm does not conflict with the existing `external-secrets` release.
 
 ### Path C — Akeyless CRDs already applied manually
 
-If you previously ran `kubectl apply` for Akeyless CRDs, Helm cannot adopt them without ownership metadata. Install **without** CRDs:
+If you previously ran `kubectl apply` for Akeyless CRDs, install **without** CRDs:
 
 ```bash
-helm upgrade --install akeyless-secrets-operator \
-  ./deploy/charts/external-secrets \
-  --namespace akeyless-secrets-operator --create-namespace \
-  --set installCRDs=false \
-  --set image.repository=docker.io/<your-user>/akeyless-secrets-operator \
-  --set image.tag=dev
+helm install akeyless-secrets-operator \
+  oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
+  --version 0.1.1 \
+  -n akeyless-secrets-operator --create-namespace \
+  --set installCRDs=false
 ```
 
 ### Verify the install
@@ -135,7 +96,7 @@ Expected:
 
 ---
 
-## Step 4 — Configure Akeyless credentials
+## Step 2 — Configure Akeyless credentials
 
 Create a Kubernetes Secret in the **application namespace** (not necessarily the operator namespace):
 
@@ -166,7 +127,7 @@ Supported `accessType` values: `api_key`, `aws_iam`, `azure_ad`, `gcp`, `k8s`. S
 
 ---
 
-## Step 5 — Create an AkeylessSecretStore
+## Step 3 — Create an AkeylessSecretStore
 
 The store tells the operator **how to reach Akeyless** and **which credentials to use**.
 
@@ -201,7 +162,7 @@ Expected status: **Ready=True**, reason **Valid**.
 
 ---
 
-## Step 6 — Sync a secret with AkeylessSecret
+## Step 4 — Sync a secret with AkeylessSecret
 
 ```yaml
 apiVersion: secrets.akeyless.io/v1alpha1
@@ -250,7 +211,7 @@ kubectl logs deployment/akeyless-secrets-operator -n akeyless-secrets-operator -
 
 ---
 
-## Step 7 — Use the secret in a workload
+## Step 5 — Use the secret in a workload
 
 Example Deployment consuming the synced secret:
 
@@ -326,24 +287,35 @@ When synced secret **data** changes, the operator triggers a rolling restart of 
 
 ## Upgrading the operator
 
-After pulling a newer chart or image:
-
 ```bash
-# Rebuild and push image (Step 2), then:
-helm upgrade --install akeyless-secrets-operator \
-  ./deploy/charts/external-secrets \
-  --namespace akeyless-secrets-operator \
-  --reuse-values \
-  --set installCRDs=false \
-  --set image.repository=docker.io/<your-user>/akeyless-secrets-operator \
-  --set image.tag=dev
+helm upgrade akeyless-secrets-operator \
+  oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
+  --version 0.1.1 \
+  -n akeyless-secrets-operator \
+  --reuse-values
 ```
 
 Use `installCRDs=false` if CRDs are already on the cluster. Use `installCRDs=true` only on fresh installs where CRDs are not present.
 
 ---
 
+## Advanced — build from source
+
+For development, air-gapped clusters, or a private registry, see [image-publishing.md](image-publishing.md).
+
+---
+
 # Troubleshooting
+
+## Helm install fails — `403 Forbidden` on OCI chart
+
+**Symptom:** `helm install oci://ghcr.io/akeyless-community/charts/...` returns `403 Forbidden`.
+
+**Cause:** GHCR packages are still **private** (default when first published by CI).
+
+**Fix:** A maintainer must set package visibility to **public**. See [ghcr-visibility.md](ghcr-visibility.md).
+
+---
 
 ## Helm install fails — CRD owned by `external-secrets`
 
@@ -381,12 +353,11 @@ missing key "app.kubernetes.io/managed-by": must be set to "Helm"
 **Fix (recommended):** Install without CRDs:
 
 ```bash
-helm upgrade --install akeyless-secrets-operator \
-  ./deploy/charts/external-secrets \
-  --namespace akeyless-secrets-operator --create-namespace \
-  --set installCRDs=false \
-  --set image.repository=docker.io/<your-user>/akeyless-secrets-operator \
-  --set image.tag=dev
+helm install akeyless-secrets-operator \
+  oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
+  --version 0.1.1 \
+  -n akeyless-secrets-operator --create-namespace \
+  --set installCRDs=false
 ```
 
 **Alternative:** Adopt existing CRDs into Helm ownership (only if you want Helm to manage them):
@@ -432,9 +403,10 @@ failed to wait for generatorstate caches to sync
 **Fix:** Ensure `processGeneratorState=false` (default on current `main`):
 
 ```bash
-helm upgrade --install akeyless-secrets-operator \
-  ./deploy/charts/external-secrets \
-  --namespace akeyless-secrets-operator \
+helm upgrade akeyless-secrets-operator \
+  oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
+  --version 0.1.1 \
+  -n akeyless-secrets-operator \
   --reuse-values \
   --set installCRDs=false \
   --set processGeneratorState=false
@@ -454,9 +426,9 @@ kubectl patch deployment akeyless-secrets-operator -n akeyless-secrets-operator 
 
 **Fix:**
 
-- Confirm image exists: `docker pull docker.io/<your-user>/akeyless-secrets-operator:dev`
-- For private registries, add `imagePullSecrets` to Helm values
-- Confirm `image.repository` and `image.tag` match what you pushed
+- Confirm image exists: `docker pull ghcr.io/akeyless-community/akeyless-secrets-operator:v0.1.1`
+- If GHCR is private, make packages public ([ghcr-visibility.md](ghcr-visibility.md)) or add `imagePullSecrets`
+- Confirm `image.repository` and `image.tag` in Helm values
 
 ---
 
@@ -527,9 +499,10 @@ kubectl get events -n <namespace> --sort-by='.lastTimestamp' | grep -i akeyless
 If you patched the deployment manually (e.g. `--enable-generator-state=false`) and a later `helm upgrade` removed it, add the setting to Helm:
 
 ```bash
-helm upgrade --install akeyless-secrets-operator \
-  ./deploy/charts/external-secrets \
-  --namespace akeyless-secrets-operator \
+helm upgrade akeyless-secrets-operator \
+  oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
+  --version 0.1.1 \
+  -n akeyless-secrets-operator \
   --reuse-values \
   --set processGeneratorState=false
 ```
@@ -560,6 +533,7 @@ helm history akeyless-secrets-operator -n akeyless-secrets-operator
 ## Related documentation
 
 - [User Guide](akeyless-secrets-operator-guide.md) — full API and configuration reference
-- [Build and install from source](image-publishing.md) — image build details
+- [Install and publish](image-publishing.md) — OCI install and build from source
+- [GHCR visibility](ghcr-visibility.md) — make packages public (maintainers)
 - [Example manifests](examples/) — copy-paste YAML
 - [Akeyless provider notes](provider/akeyless.md) — provider-specific options

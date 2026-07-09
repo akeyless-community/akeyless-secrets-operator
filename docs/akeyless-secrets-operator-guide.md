@@ -42,52 +42,46 @@ Legacy `external-secrets.io` resources (`ExternalSecret`, `SecretStore`, etc.) a
 - Network access from the cluster to Akeyless (SaaS or Gateway)
 - Akeyless credentials with read access to target items
 
-### Install with Helm (local build)
+### Install with Helm (published chart)
 
-The operator is installed from the Helm chart in this repository. **Build the container image yourself** and point Helm at your registry — there is no public OCI chart or image pull.
-
-**1. Build and push the image**
+Install from GHCR, similar to External Secrets Operator — no local build required:
 
 ```bash
-git clone https://github.com/akeyless-community/akeyless-secrets-operator.git
-cd akeyless-secrets-operator
-
-ARCH=amd64 make build-amd64
-docker build --platform linux/amd64 -f Dockerfile \
-  -t docker.io/<your-user>/akeyless-secrets-operator:dev .
-
-docker login
-docker push docker.io/<your-user>/akeyless-secrets-operator:dev
+helm install akeyless-secrets-operator \
+  oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
+  --version 0.1.0 \
+  -n akeyless-secrets-operator \
+  --create-namespace
 ```
 
-For arm64 clusters, use `ARCH=arm64` and `--platform linux/arm64`.
+The chart uses `ghcr.io/akeyless-community/akeyless-secrets-operator` at the chart `appVersion` by default. Pin a different image tag with `--set image.tag=v0.1.0`.
 
-**2. Install from the local chart**
+If you see `403 Forbidden` on install, GHCR packages may still be private — see [ghcr-visibility.md](ghcr-visibility.md).
+
+### Install from source (development)
+
+For local builds or private registries, see [image-publishing.md](image-publishing.md).
 
 ```bash
 helm upgrade --install akeyless-secrets-operator \
   ./deploy/charts/external-secrets \
   --namespace akeyless-secrets-operator --create-namespace \
-  --set installCRDs=true \
   --set image.repository=docker.io/<your-user>/akeyless-secrets-operator \
   --set image.tag=dev
 ```
-
-If your registry is private, create an `imagePullSecret` in the operator namespace and set `imagePullSecrets` in Helm values.
 
 ### Co-existing with External Secrets Operator
 
 If **External Secrets Operator (ESO)** is already installed in another namespace, keep the default chart values — only Akeyless CRDs (`secrets.akeyless.io`) are installed. Legacy ESO CRDs (`external-secrets.io`, `generators.external-secrets.io`) are **not** created by default, so Helm will not conflict with the existing ESO release.
 
-If the Akeyless CRDs are already present (for example from a prior manual apply), set `installCRDs=false` and install only the operator Deployment:
+If the Akeyless CRDs are already present (for example from a prior manual apply), set `installCRDs=false`:
 
 ```bash
-helm upgrade --install akeyless-secrets-operator \
-  ./deploy/charts/external-secrets \
-  --namespace akeyless-secrets-operator --create-namespace \
-  --set installCRDs=false \
-  --set image.repository=docker.io/<your-user>/akeyless-secrets-operator \
-  --set image.tag=dev
+helm install akeyless-secrets-operator \
+  oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
+  --version 0.1.0 \
+  -n akeyless-secrets-operator --create-namespace \
+  --set installCRDs=false
 ```
 
 The chart also disables the legacy **GeneratorState** controller by default (`processGeneratorState: false`), since the GeneratorState CRD is not installed in Akeyless-only deployments. Without this, the operator crash-loops when the CRD is missing.
@@ -447,5 +441,6 @@ Enable legacy reconciliation temporarily with `--enable-legacy-external-secrets-
 ## Related documentation
 
 - [Getting Started Manual](getting-started.md) — step-by-step install and troubleshooting
-- [Build and install from source](image-publishing.md)
+- [Install and publish](image-publishing.md)
+- [GHCR package visibility](ghcr-visibility.md) (maintainers)
 - [Example manifests](examples/)

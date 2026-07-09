@@ -20,8 +20,8 @@ scopedNamespace: my-app
 namespaceOverride: my-app
 
 image:
-  repository: docker.io/<your-user>/akeyless-secrets-operator
-  tag: dev
+  repository: ghcr.io/akeyless-community/akeyless-secrets-operator
+  tag: ""
   pullPolicy: IfNotPresent
 
 akeylessWebhook:

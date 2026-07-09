@@ -43,11 +43,10 @@ bitwarden-sdk-server:
 revisionHistoryLimit: 10
 
 image:
-  # Build locally and override at install time — see docs/image-publishing.md
-  repository: docker.io/<your-user>/akeyless-secrets-operator
+  repository: ghcr.io/akeyless-community/akeyless-secrets-operator
   pullPolicy: IfNotPresent
-  # -- The image tag to use. Set to the tag you built and pushed.
-  tag: dev
+  # -- The image tag to use. Defaults to the chart appVersion when empty.
+  tag: ""
   # -- The flavour of tag you want to use
   # There are different image flavours available, like distroless and ubi.
   # Please see GitHub release notes for image tags for these flavors.

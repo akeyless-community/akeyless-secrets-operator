@@ -85,6 +85,14 @@ jobs:
             -t "${{ env.IMAGE }}:latest" \
             .
 
+      - name: Set chart version
+        run: |
+          chart_version="${{ steps.version.outputs.chart_version }}"
+          tag="${{ steps.version.outputs.tag }}"
+          sed -i "s/^version:.*/version: \"${chart_version}\"/" deploy/charts/external-secrets/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${tag}\"/" deploy/charts/external-secrets/Chart.yaml
+          grep -E '^(version|appVersion):' deploy/charts/external-secrets/Chart.yaml
+
       - name: Package Helm chart
         run: |
           make helm.generate

@@ -51,6 +51,16 @@ See [docs/provider/akeyless.md](docs/provider/akeyless.md) for configuration exa
 
 **New to the operator?** Start with the [Step-by-Step Getting Started Manual](docs/getting-started.md) (install, first secret, troubleshooting).
 
+Install from the published Helm chart (like External Secrets Operator):
+
+```bash
+helm install akeyless-secrets-operator \
+  oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
+  --version 0.1.1 \
+  -n akeyless-secrets-operator \
+  --create-namespace
+```
+
 See the full [User Guide](docs/akeyless-secrets-operator-guide.md) for all configuration options and API reference.
 
 ```yaml
