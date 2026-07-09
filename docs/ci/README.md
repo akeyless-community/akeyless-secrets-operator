@@ -1,24 +1,19 @@
-# CI setup
+# CI
 
-Basic CI is defined in `docs/ci/ci.yml`. Copy it to `.github/workflows/ci.yml` to activate:
+Pull requests to `main` run the workflow in [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml).
 
-```bash
-mkdir -p .github/workflows
-cp docs/ci/ci.yml .github/workflows/ci.yml
-```
+## What runs on every PR
 
-GitHub requires the **`workflow` OAuth scope** to push workflow files via git:
+| Job | What it does |
+|-----|----------------|
+| `test-and-build` | `go test -race` in `providers/v1/akeyless`; `go build -tags akeyless` for linux/amd64 |
 
-```bash
-gh auth refresh -h github.com -s workflow
-git add .github/workflows/ci.yml
-git commit -m "Add basic CI workflow"
-git push origin main
-```
+Branch protection requires the `test-and-build` check to pass before merge.
 
-## What CI runs
+## Archived upstream workflows
 
-- `go test ./... -race` in `providers/v1/akeyless`
-- `go build -tags akeyless` for linux/amd64
+Full upstream ESO workflows (multi-provider e2e, release automation, etc.) are kept under [`.github/upstream-workflows/`](../../.github/upstream-workflows/) for reference. They are **not** active in this repository.
 
-Upstream-only workflows are archived under `.github/upstream-workflows/`.
+## Bootstrap template
+
+[`ci.yml`](ci.yml) in this directory is the source template used when CI was first enabled. The live workflow is already in `.github/workflows/ci.yml` — do not copy unless setting up a new repository from scratch.

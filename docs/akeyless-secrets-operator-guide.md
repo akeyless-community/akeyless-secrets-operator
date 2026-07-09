@@ -49,14 +49,14 @@ Install from GHCR, similar to External Secrets Operator — no local build requi
 ```bash
 helm install akeyless-secrets-operator \
   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
-  --version 0.1.0 \
+  --version 0.1.1 \
   -n akeyless-secrets-operator \
   --create-namespace
 ```
 
-The chart uses `ghcr.io/akeyless-community/akeyless-secrets-operator` at the chart `appVersion` by default. Pin a different image tag with `--set image.tag=v0.1.0`.
+The chart uses `ghcr.io/akeyless-community/akeyless-secrets-operator` at the chart `appVersion` by default (e.g. `v0.1.1` for chart `0.1.1`). Pin a different tag with `--set image.tag=v0.1.1`.
 
-If you see `403 Forbidden` on install, GHCR packages may still be private — see [ghcr-visibility.md](ghcr-visibility.md).
+If you see `403 Forbidden` on install, the GHCR chart package may be private — see [ghcr-visibility.md](ghcr-visibility.md).
 
 ### Install from source (development)
 
@@ -79,7 +79,7 @@ If the Akeyless CRDs are already present (for example from a prior manual apply)
 ```bash
 helm install akeyless-secrets-operator \
   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
-  --version 0.1.0 \
+  --version 0.1.1 \
   -n akeyless-secrets-operator --create-namespace \
   --set installCRDs=false
 ```
@@ -440,7 +440,9 @@ Enable legacy reconciliation temporarily with `--enable-legacy-external-secrets-
 
 ## Related documentation
 
+- [Documentation index](README.md)
 - [Getting Started Manual](getting-started.md) — step-by-step install and troubleshooting
 - [Install and publish](image-publishing.md)
-- [GHCR package visibility](ghcr-visibility.md) (maintainers)
+- [GHCR releases](ghcr-visibility.md) (maintainers)
 - [Example manifests](examples/)
+- [Helm chart INSTALL](../deploy/charts/external-secrets/INSTALL.md)

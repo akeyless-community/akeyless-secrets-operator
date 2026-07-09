@@ -49,7 +49,9 @@ See [docs/provider/akeyless.md](docs/provider/akeyless.md) for configuration exa
 
 ## Quick start
 
-**New to the operator?** Start with the [Step-by-Step Getting Started Manual](docs/getting-started.md) (install, first secret, troubleshooting).
+**New to the operator?** Start with the [Step-by-Step Getting Started Manual](docs/getting-started.md).
+
+**Documentation index:** [docs/README.md](docs/README.md)
 
 Install from the published Helm chart (like External Secrets Operator):
 
@@ -99,7 +101,7 @@ spec:
         key: /path/to/secret
 ```
 
-## Build
+## Build (contributors)
 
 ```bash
 make build          # builds with -tags akeyless (default)
@@ -107,9 +109,11 @@ make test           # unit tests
 make reviewable     # full PR gate (generate, lint, tests, CRD snapshots)
 ```
 
-## Container image
+See [docs/contributing/devguide.md](docs/contributing/devguide.md).
 
-Build and install from source — see [docs/image-publishing.md](docs/image-publishing.md) for building the image, pushing to your registry, and installing with the local Helm chart.
+## Install from source (advanced)
+
+For local builds, air-gapped clusters, or private registries — see [docs/image-publishing.md](docs/image-publishing.md).
 
 Example manifests: [docs/examples/](docs/examples/).
 
