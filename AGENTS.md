@@ -1,4 +1,6 @@
-# External Secrets Operator
+# External Secrets Operator (upstream fork baseline)
+
+> **Akeyless fork:** This file describes upstream ESO development patterns. For installing and using the **Akeyless Secrets Operator**, see [docs/README.md](docs/README.md) and [docs/getting-started.md](docs/getting-started.md).
 
 Kubernetes operator that synchronizes secrets from external providers (AWS Secrets Manager, Vault, GCP Secret Manager, Azure Key Vault, etc.) into Kubernetes Secrets.
 
