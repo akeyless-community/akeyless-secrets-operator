@@ -1,0 +1,9 @@
+Ported from external-secrets/external-secrets upstream (approx Jul 2026):
+- #6515 ReadWrite capabilities (PushSecret was skipped while ReadOnly)
+- #6633 JSONToSecretDataMap + dataFrom.extract.property
+- #6530 optional AccessTypeParam + Azure cloud settings
+- Client cache for SecretsClient
+- Go 1.26.5, x/crypto v0.53, x/net v0.56, distroless/ubi digests
+- GetSecretMap unmarshal errors sanitized (no secret leakage in status)
+- Optional NetworkPolicy templates (disabled by default)
+Skipped unrelated provider features (Conjur, AWS ACM, etc.).
