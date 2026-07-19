@@ -204,7 +204,7 @@ Each entry in `data` maps an Akeyless item path to a Kubernetes Secret key:
 |-------|-------------|
 | `secretKey` | Key written in the Kubernetes Secret |
 | `remoteRef.key` | Full Akeyless item path (e.g. `/prod/db/password`) |
-| `remoteRef.property` | Optional JSON field to extract from the item value |
+| `remoteRef.property` | Optional JSON field to extract from the item value. For nested objects with `dataFrom.extract`, use `extract.property` to select a subtree before parsing. |
 | `remoteRef.version` | Optional specific item version |
 
 ### Example — static secret with rollout restart
