@@ -30,6 +30,7 @@ const (
 	errFetchAccessTypeParamSecret = "could not fetch AccessTypeParam secret: %w"
 	errMissingSAK                 = "missing SecretAccessKey"
 	errMissingAKID                = "missing AccessKeyID"
+	errMissingAccessTypeParam     = "missing AccessTypeParam for Akeyless access key auth"
 )
 
 func (a *akeylessBase) TokenFromSecretRef(ctx context.Context) (string, error) {
@@ -63,15 +64,19 @@ func (a *akeylessBase) TokenFromSecretRef(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf(errFetchAccessTypeSecret, err)
 	}
-	accessTypeParam, err := resolvers.SecretKeyRef(
-		ctx,
-		a.kube,
-		a.storeKind,
-		a.namespace,
-		&prov.Auth.SecretRef.AccessTypeParam,
-	)
-	if err != nil {
-		return "", fmt.Errorf(errFetchAccessTypeParamSecret, err)
+
+	var accessTypeParam string
+	if prov.Auth.SecretRef.AccessTypeParam.Name != "" {
+		accessTypeParam, err = resolvers.SecretKeyRef(
+			ctx,
+			a.kube,
+			a.storeKind,
+			a.namespace,
+			&prov.Auth.SecretRef.AccessTypeParam,
+		)
+		if err != nil {
+			return "", fmt.Errorf(errFetchAccessTypeParamSecret, err)
+		}
 	}
 
 	if accessID == "" {
@@ -79,6 +84,9 @@ func (a *akeylessBase) TokenFromSecretRef(ctx context.Context) (string, error) {
 	}
 	if accessType == "" {
 		return "", errors.New(errMissingAKID)
+	}
+	if (accessType == "api_key" || accessType == "access_key") && accessTypeParam == "" {
+		return "", errors.New(errMissingAccessTypeParam)
 	}
 
 	return a.GetToken(ctx, accessID, accessType, accessTypeParam, prov.Auth)

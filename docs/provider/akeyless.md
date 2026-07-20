@@ -119,6 +119,28 @@ DataFrom can be used to get a secret as a JSON string and attempt to parse it.
 {% include 'akeyless-external-secret-json.yaml' %}
 ```
 
+When the secret contains nested JSON objects, use `extract.property` to select a subtree before parsing. This is useful when only part of the secret should be synced (for example, extracting a `db` object while ignoring other top-level keys like `apiKey`).
+
+```yaml
+{% include 'akeyless-external-secret-json-property.yaml' %}
+```
+
+Given an Akeyless static secret with value:
+
+```json
+{
+  "db": {
+    "username": "my_user",
+    "password": "my_pass"
+  },
+  "apiKey": "myApiKey"
+}
+```
+
+The example above creates a Kubernetes secret with keys `username` and `password`. Non-string JSON values (numbers, booleans, nested objects) are preserved as their JSON representation.
+
+**Note:** `extract.property` requires the secret value to be valid JSON. It works reliably with **Static Secrets**. Dynamic and Rotated secrets may return provider-specific JSON envelopes; use `remoteRef.property` with `spec.data` for individual fields in those cases.
+
 ### Getting the Kubernetes Secret
 
 The operator will fetch the secret and inject it as a `Kind=Secret`.
