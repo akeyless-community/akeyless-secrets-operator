@@ -1,0 +1,4 @@
+PR #19 CI failed at Build operator: missing go.sum for azcore/azidentity
+(and transitive jwt/v5) because Dependabot only updated providers/v1/akeyless.
+Synced root + generators/v1/acr to azidentity v1.14.0 / azcore v1.22.0.
+Verified: go build -tags akeyless and akeyless package tests.
