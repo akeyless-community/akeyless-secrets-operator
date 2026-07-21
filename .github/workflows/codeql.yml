@@ -40,7 +40,7 @@ jobs:
         config-file: ./.github/config/codeql-config.yaml
     - name: Perform CodeQL Analysis
       id: codeql_analyze
-      uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v3.29.5
+      uses: github/codeql-action/analyze@7188fc363630916deb702c7fdcf4e481b751f97a # v3.29.5
       continue-on-error: true
     - name: Report CodeQL availability
       if: steps.codeql_analyze.outcome != 'success'
