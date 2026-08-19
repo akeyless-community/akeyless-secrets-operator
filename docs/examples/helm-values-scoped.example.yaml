@@ -1,5 +1,5 @@
 # Example Helm values for a namespace-scoped, Akeyless-only operator install.
-# Copy and customize before use. See docs/image-publishing.md for build and install steps.
+# Copy and customize before use. See docs/getting-started.md and docs/image-publishing.md.
 createOperator: true
 installCRDs: true
 

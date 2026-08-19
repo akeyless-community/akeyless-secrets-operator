@@ -1,6 +1,9 @@
 # Getting Started — Step-by-Step Manual
 
-This manual walks through installing the Akeyless Secrets Operator, syncing your first secret, and fixing common problems. For full API reference and advanced options, see the [User Guide](akeyless-secrets-operator-guide.md).
+This manual walks through installing the Akeyless Secrets Operator, syncing your first secret, and fixing common problems.
+
+- **Full API reference:** [User Guide](akeyless-secrets-operator-guide.md)
+- **All documentation:** [Documentation index](README.md)
 
 ---
 
@@ -46,17 +49,6 @@ helm install akeyless-secrets-operator \
 ```
 
 No local clone or image build is required. The chart pulls `ghcr.io/akeyless-community/akeyless-secrets-operator:v0.1.1` by default.
-
-> **Until chart `0.1.1` is published to GHCR**, use chart `0.1.0` with explicit image settings:
-> ```bash
-> helm install akeyless-secrets-operator \
->   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
->   --version 0.1.0 \
->   -n akeyless-secrets-operator --create-namespace \
->   --set image.repository=ghcr.io/akeyless-community/akeyless-secrets-operator \
->   --set image.tag=v0.1.1 \
->   --set processGeneratorState=false
-> ```
 
 Choose **one** variant if your cluster already has related resources:
 
@@ -311,7 +303,7 @@ For development, air-gapped clusters, or a private registry, see [image-publishi
 
 **Symptom:** `helm install oci://ghcr.io/akeyless-community/charts/...` returns `403 Forbidden`.
 
-**Cause:** GHCR packages are still **private** (default when first published by CI).
+**Cause:** GHCR chart package is **private** (default when first published).
 
 **Fix:** A maintainer must set package visibility to **public**. See [ghcr-visibility.md](ghcr-visibility.md).
 
@@ -329,7 +321,7 @@ current value is "external-secrets"
 
 **Cause:** Helm tried to install legacy ESO CRDs that already exist from an External Secrets Operator install.
 
-**Fix:** Use a current chart from `main` (PR #24+). Defaults install only Akeyless CRDs. If you still see this, ensure you are not forcing legacy CRD flags:
+**Fix:** Use a current chart release. Defaults install only Akeyless CRDs. Do not force legacy CRD flags:
 
 ```bash
 # Do NOT set these unless you explicitly need legacy ESO CRDs:
@@ -532,8 +524,10 @@ helm history akeyless-secrets-operator -n akeyless-secrets-operator
 
 ## Related documentation
 
+- [Documentation index](README.md)
 - [User Guide](akeyless-secrets-operator-guide.md) — full API and configuration reference
 - [Install and publish](image-publishing.md) — OCI install and build from source
-- [GHCR visibility](ghcr-visibility.md) — make packages public (maintainers)
-- [Example manifests](examples/) — copy-paste YAML
-- [Akeyless provider notes](provider/akeyless.md) — provider-specific options
+- [Helm chart INSTALL](../deploy/charts/external-secrets/INSTALL.md)
+- [GHCR releases](ghcr-visibility.md) (maintainers)
+- [Example manifests](examples/)
+- [Akeyless provider](provider/akeyless.md)

@@ -22,10 +22,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
-	azure_cloud_id "github.com/akeylesslabs/akeyless-go-cloud-id/cloudprovider/azure"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	azure_cloud_id "github.com/akeylesslabs/akeyless-go-cloud-id/cloudprovider/azure"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -36,7 +39,9 @@ import (
 const (
 	azureDefaultAudience = "api://AzureADTokenExchange"
 	annotationClientID   = "azure.workload.identity/client-id"
-	annotationTenantID     = "azure.workload.identity/tenant-id"
+	annotationTenantID   = "azure.workload.identity/tenant-id"
+
+	serviceAccountTokenExpirationSeconds int64 = 600
 
 	errMissingAzureClientID = "missing Azure client ID: set accessTypeParam or annotate the service account with %s"
 	errMissingAzureTenantID = "missing Azure tenant ID: annotate the service account with %s or set AZURE_TENANT_ID"
@@ -78,15 +83,18 @@ func (a *akeylessBase) getAzureCloudIDFromServiceAccount(ctx context.Context, re
 	}
 
 	getAssertion := func(ctx context.Context) (string, error) {
-		return a.getJWTfromServiceAccountToken(ctx, *ref, []string{azureDefaultAudience}, 600)
+		return a.getJWTfromServiceAccountToken(ctx, *ref, []string{azureDefaultAudience}, serviceAccountTokenExpirationSeconds)
 	}
 
-	cred, err := azidentity.NewClientAssertionCredential(tenantID, clientID, getAssertion, nil)
+	azureCloud := azureCloudSettingsFromEnv()
+	cred, err := azidentity.NewClientAssertionCredential(tenantID, clientID, getAssertion, &azidentity.ClientAssertionCredentialOptions{
+		ClientOptions: azcore.ClientOptions{Cloud: azureCloud.cloud},
+	})
 	if err != nil {
 		return "", fmt.Errorf("failed to create Azure client assertion credential: %w", err)
 	}
 
-	accessToken, err := cred.GetToken(ctx, policy.TokenRequestOptions{Scopes: []string{azure_cloud_id.AzureADManagementScope}})
+	accessToken, err := cred.GetToken(ctx, policy.TokenRequestOptions{Scopes: []string{azureCloud.scope}})
 	if err != nil {
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
@@ -106,6 +114,50 @@ func azureClientID(sa *corev1.ServiceAccount, accTypeParam string) (string, erro
 		return accTypeParam, nil
 	}
 	return "", fmt.Errorf(errMissingAzureClientID, annotationClientID)
+}
+
+type azureCloudSettings struct {
+	scope string
+	cloud cloud.Configuration
+}
+
+var (
+	publicAzureCloudSettings = azureCloudSettings{
+		scope: azure_cloud_id.AzureADManagementScope,
+		cloud: cloud.AzurePublic,
+	}
+	usGovAzureCloudSettings = azureCloudSettings{
+		scope: "https://management.usgovcloudapi.net/.default",
+		cloud: cloud.AzureGovernment,
+	}
+	chinaAzureCloudSettings = azureCloudSettings{
+		scope: "https://management.chinacloudapi.cn/.default",
+		cloud: cloud.AzureChina,
+	}
+)
+
+func azureCloudSettingsFromEnv() azureCloudSettings {
+	for _, key := range []string{"AZURE_ENVIRONMENT", "AZURE_CLOUD"} {
+		if v, ok := os.LookupEnv(key); ok {
+			if cfg, ok := azureCloudSettingsFromName(v); ok {
+				return cfg
+			}
+		}
+	}
+	return publicAzureCloudSettings
+}
+
+func azureCloudSettingsFromName(raw string) (azureCloudSettings, bool) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "azurecloud", "azurepubliccloud":
+		return publicAzureCloudSettings, true
+	case "azureusgovernment", "azureusgovernmentcloud":
+		return usGovAzureCloudSettings, true
+	case "azurechinacloud", "azurechinacloud21vianet":
+		return chinaAzureCloudSettings, true
+	default:
+		return azureCloudSettings{}, false
+	}
 }
 
 func azureTenantID(sa *corev1.ServiceAccount) (string, error) {
