@@ -1,43 +1,9 @@
-# External Secrets Operator Adopters
+# Adopters
 
-<!-- Add yourself here if you are using ESO in your company or your project! -->
+The Akeyless Secrets Operator is a community project. If your organization uses it in production, open a pull request to add your name below.
 
-- [Amadeus](https://amadeus.com/)
-- [Cisco](https://www.cisco.com/)
-- [Codefresh](https://codefresh.io/)
-- [Container Solutions](http://container-solutions.com/)
-- [Criteo](https://www.criteo.com)
-- [DaangnPay](https://www.daangnpay.com/)
-- [Epidemic Sound](https://www.epidemicsound.com/)
-- [Elastic](https://www.elastic.co/)
-- [Fivetran](https://www.fivetran.com)
-- [Form3](https://www.form3.tech/)
-- [GoTo](https://www.goto.com/)
-- [Grafana Labs](https://grafana.com/)
-- [Heureka Group](https://heureka.group)
-- [Hostinger](https://www.hostinger.com/)
-- [K8S Website Infra](https://k8s.io/)
-- [Loblaw](https://www.loblaw.ca/en/digital-and-technology/)
-- [Mercedes-Benz Tech Innovation](https://www.mercedes-benz-techinnovation.com/)
-- [Mixpanel](https://mixpanel.com)
-- [OpenClassrooms](https://openclassrooms.com)
-- [OVHcloud](https://www.ovhcloud.com)
-- [Pento](https://www.pento.io/)
-- [Petco Health and Wellness Company, Inc](https://www.petco.com/)
-- [Pets at Home Group plc](https://petsathome.com)
-- [Pier Insurance](https://www.pier.digital/)
-- [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/)
-- [PHOENIX MEDIA](https://www.phoenix-media.eu/)
-- [Polarpoint](https://www.polarpoint.io/)
-- [Radio France](https://www.radiofrance.fr/)
-- [Red Hat OpenShift](https://www.redhat.com/en/technologies/cloud-computing/openshift)
-- [Roche](https://www.roche.com/)
-- [Rootline](https://rootline.com/)
-- [SAP](https://www.sap.com/)
-- [Skeeled](https://www.skeeled.com/)
-- [Topicus.Education](https://topicus.nl/en/sectors/education)
-- [Made People](https://madepeople.se/)
-- [Voiceflow](https://www.voiceflow.com/)
-- [VMware Tanzu](https://tanzu.vmware.com/)
+| Organization | Use case |
+|--------------|----------|
+| *(add yours)* | |
 
-Countless others that can't disclose that information! :)
+Upstream [External Secrets Operator adopters](https://github.com/external-secrets/external-secrets/blob/main/ADOPTERS.md) are listed in the ESO repository.

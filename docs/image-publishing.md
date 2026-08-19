@@ -1,8 +1,8 @@
 # Install and publish
 
-## Recommended — install from GHCR (like ESO)
+## Recommended — install from GHCR
 
-No local build required. Install the published Helm chart and image from GitHub Container Registry:
+Install the published Helm chart and image (no local build):
 
 ```bash
 helm install akeyless-secrets-operator \
@@ -12,7 +12,7 @@ helm install akeyless-secrets-operator \
   --create-namespace
 ```
 
-The chart defaults pull `ghcr.io/akeyless-community/akeyless-secrets-operator` at the chart `appVersion` (e.g. `v0.1.0`). Override with `--set image.tag=v0.1.1` if needed.
+The chart defaults pull `ghcr.io/akeyless-community/akeyless-secrets-operator` at the chart `appVersion` (e.g. `v0.1.1` for chart `0.1.1`). See [GitHub Releases](https://github.com/akeyless-community/akeyless-secrets-operator/releases) for the latest version.
 
 ### Fresh cluster vs existing CRDs
 
@@ -33,11 +33,17 @@ helm install akeyless-secrets-operator \
 
 ### Co-existing with External Secrets Operator
 
-Use the same command as above. Chart defaults install only `secrets.akeyless.io` CRDs and skip legacy ESO CRDs owned by an existing `external-secrets` Helm release.
+Use the same command. Chart defaults install only `secrets.akeyless.io` CRDs and skip legacy ESO CRDs.
 
-### Troubleshooting `403` on `helm install oci://...`
+### Upgrade
 
-GHCR packages are private until a maintainer sets them to **public**. See [ghcr-visibility.md](ghcr-visibility.md).
+```bash
+helm upgrade akeyless-secrets-operator \
+  oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
+  --version 0.1.1 \
+  -n akeyless-secrets-operator \
+  --reuse-values
+```
 
 ### Namespace-scoped install
 
@@ -53,19 +59,13 @@ helm install akeyless-secrets-operator \
 
 ## Releases (maintainers)
 
-Publishing runs on [GitHub Release](https://github.com/akeyless-community/akeyless-secrets-operator/releases) or **Actions → Release → Run workflow**:
-
-1. Builds multi-arch image → `ghcr.io/akeyless-community/akeyless-secrets-operator:<tag>`
-2. Bumps chart `version` / `appVersion` from the release tag
-3. Pushes chart → `oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator`
-
-Before the first public install works, make GHCR packages public: [ghcr-visibility.md](ghcr-visibility.md).
+See [ghcr-visibility.md](ghcr-visibility.md) for publishing a new version.
 
 ---
 
 ## Advanced — build and install from source
 
-Use this for development, air-gapped clusters, or a private registry.
+Use for development, air-gapped clusters, or a private registry.
 
 ### 1. Build the image
 
@@ -80,15 +80,6 @@ docker build --platform linux/amd64 -f Dockerfile \
 
 For arm64: `ARCH=arm64`, `--platform linux/arm64`.
 
-Or:
-
-```bash
-ARCH=amd64 \
-  IMAGE_NAME=docker.io/<your-user>/akeyless-secrets-operator \
-  IMAGE_TAG=dev \
-  make docker.build
-```
-
 ### 2. Push or load the image
 
 ```bash
@@ -96,11 +87,7 @@ docker login
 docker push docker.io/<your-user>/akeyless-secrets-operator:dev
 ```
 
-For kind/minikube:
-
-```bash
-kind load docker-image docker.io/<your-user>/akeyless-secrets-operator:dev
-```
+For kind/minikube: `kind load docker-image docker.io/<your-user>/akeyless-secrets-operator:dev`
 
 ### 3. Install from the local chart
 
@@ -128,5 +115,5 @@ kubectl apply -f docs/examples/akeyless-secret.yaml
 
 - [Getting started](getting-started.md)
 - [User guide](akeyless-secrets-operator-guide.md)
-- [GHCR visibility](ghcr-visibility.md)
-- [Helm chart values](../deploy/charts/external-secrets/values.yaml)
+- [Documentation index](README.md)
+- [Helm chart INSTALL](../deploy/charts/external-secrets/INSTALL.md)
