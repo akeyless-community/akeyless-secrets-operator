@@ -5,7 +5,7 @@ go 1.26.5
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.3
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0
-	github.com/akeylesslabs/akeyless-go-cloud-id v0.3.9
+	github.com/akeylesslabs/akeyless-go-cloud-id v0.3.10
 	github.com/akeylesslabs/akeyless-go/v4 v4.3.0
 	github.com/external-secrets/external-secrets/apis v0.0.0
 	github.com/external-secrets/external-secrets/runtime v0.0.0
