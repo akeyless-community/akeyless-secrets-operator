@@ -17,7 +17,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE: ghcr.io/akeyless-community/akeyless-secrets-operator
   CHART_OCI: oci://ghcr.io/akeyless-community/charts
-  PROVIDER: akeyless
+  PROVIDER: akeyless,vault
 
 jobs:
   publish:

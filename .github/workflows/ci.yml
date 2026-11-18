@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 env:
-  PROVIDER: akeyless
+  PROVIDER: akeyless,vault
 
 jobs:
   test-and-build:
@@ -38,10 +38,16 @@ jobs:
           cd providers/v1/akeyless
           go test ./... -race -count=1
 
+      - name: Test Vault provider
+        run: |
+          make go-work
+          cd providers/v1/vault
+          go test ./... -race -count=1
+
       - name: Build operator
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-            go build -tags akeyless -o bin/akeyless-secrets-operator main.go
+            go build -tags "$PROVIDER" -o bin/akeyless-secrets-operator main.go
 
       - name: Verify binary
         run: |

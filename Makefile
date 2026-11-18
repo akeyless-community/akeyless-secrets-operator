@@ -144,7 +144,7 @@ test.crds.update: cty crds.generate.tests ## Update the snapshots used by the CR
 .PHONY: build
 build: $(addprefix build-,$(ARCH)) ## Build binary
 
-PROVIDER ?= akeyless
+PROVIDER ?= akeyless,vault
 .PHONY: build-%
 build-%: generate ## Build binary for the specified arch
 	@$(INFO) go build $*

@@ -1,0 +1,15 @@
+# Run Akeyless and HashiCorp Vault side by side.
+# Akeyless keeps using AkeylessSecretStore / AkeylessSecret.
+# Vault uses external-secrets.io SecretStore / ClusterSecretStore / ExternalSecret.
+#
+# Do not use these values if External Secrets Operator is already installed in
+# the cluster: both charts would own the external-secrets.io CRDs.
+
+crds:
+  createSecretStore: true
+  createClusterSecretStore: true
+  createExternalSecret: true
+
+processSecretStore: true
+processClusterStore: true
+processLegacyExternalSecret: true
