@@ -2,11 +2,11 @@
 
 Kubernetes operator that syncs secrets from [Akeyless](https://www.akeyless.io/) into native Kubernetes `Secret` objects.
 
-This project is a focused fork of [External Secrets Operator](https://github.com/external-secrets/external-secrets), retaining only the Akeyless provider and the core reconciliation engine. It is maintained by the [Akeyless Community](https://github.com/akeyless-community).
+This project is a focused fork of [External Secrets Operator](https://github.com/external-secrets/external-secrets), retaining the Akeyless provider, the HashiCorp Vault provider and the core reconciliation engine. It is maintained by the [Akeyless Community](https://github.com/akeyless-community).
 
 ## Why fork?
 
-- **Single provider** — smaller binary, simpler CRDs, faster releases aligned with Akeyless features
+- **Focused providers** — Akeyless first, plus HashiCorp Vault for clusters that need both side by side ([guide](docs/vault.md)); smaller binary, simpler CRDs, faster releases aligned with Akeyless features
 - **Akeyless-first UX** — documentation, Helm chart, and defaults tailored to Akeyless deployments
 - **Change-aware sync** — roadmap includes tighter integration with Akeyless secret lifecycle (see [docs/ROADMAP.md](docs/ROADMAP.md))
 

@@ -10,6 +10,7 @@ Start here for the **Akeyless Secrets Operator**. Upstream External Secrets Oper
 | [User Guide](akeyless-secrets-operator-guide.md) | Full API reference, sync policies, Helm values, migration |
 | [Install and publish](image-publishing.md) | OCI install (default), upgrades, build-from-source (advanced) |
 | [Akeyless provider](provider/akeyless.md) | Provider-specific options (`ignoreCache`, auth, Gateway) |
+| [Vault alongside Akeyless](vault.md) | Sync from HashiCorp Vault and Akeyless with one operator |
 | [Example manifests](examples/) | Copy-paste YAML for store, secret, dynamic secret |
 
 ### Quick install
