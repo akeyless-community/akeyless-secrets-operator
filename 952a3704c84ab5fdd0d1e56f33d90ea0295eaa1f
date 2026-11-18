@@ -1,0 +1,1 @@
+Vault provider is registered via pkg/register/vault.go under the 'vault' build tag; default PROVIDER is now akeyless,vault. The providers/v1/vault go.mod is not tidy standalone, so CI runs its tests through 'make go-work'. AkeylessSecretStore stays Akeyless-only; Vault goes through the legacy external-secrets.io CRDs, which the chart keeps off by default.
