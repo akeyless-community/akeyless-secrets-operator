@@ -58,7 +58,7 @@ Install from the published Helm chart (like External Secrets Operator):
 ```bash
 helm install akeyless-secrets-operator \
   oci://ghcr.io/akeyless-community/charts/akeyless-secrets-operator \
-  --version 0.1.1 \
+  --version 0.2.0 \
   -n akeyless-secrets-operator \
   --create-namespace
 ```
