@@ -471,7 +471,9 @@ func (a *Akeyless) GetSecretMap(ctx context.Context, ref esv1.ExternalSecretData
 
 	secretData, err := esutils.JSONToSecretDataMap(data)
 	if err != nil {
-		return nil, fmt.Errorf(errJSONSecretUnmarshal, err)
+		// Do not return the raw error as json.Unmarshal errors may contain
+		// sensitive secret data in the error message.
+		return nil, errors.New(errJSONSecretUnmarshal)
 	}
 
 	return secretData, nil

@@ -430,7 +430,11 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 LINT_TARGET ?= ""
 ## Tool Versions
-GOLANGCI_VERSION := 2.11.3
+# golangci-lint refuses to load a config for modules whose go directive is newer than the Go it was built with.
+# Build it from source with the repo's Go version instead of using install.sh: the release tarballs of 2.15.0
+# also ship .sbom.json entries in the checksum file, which install.sh's unanchored grep cannot handle.
+GO_TOOLCHAIN_VERSION := 1.27.0
+GOLANGCI_VERSION := 2.15.0
 KUBERNETES_VERSION := 1.33.x
 TILT_VERSION := 0.33.21
 CTY_VERSION := 1.1.3
@@ -445,7 +449,7 @@ $(ENVTEST): $(LOCALBIN)
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
 $(GOLANGCI_LINT): $(LOCALBIN)
 	test -s $(LOCALBIN)/golangci-lint && $(LOCALBIN)/golangci-lint version | grep -q $(GOLANGCI_VERSION) || \
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(LOCALBIN) v$(GOLANGCI_VERSION)
+	GOBIN=$(LOCALBIN) GOTOOLCHAIN=go$(GO_TOOLCHAIN_VERSION) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v$(GOLANGCI_VERSION)
 
 .PHONY: tilt
 .PHONY: $(TILT)

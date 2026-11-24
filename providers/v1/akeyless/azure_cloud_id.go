@@ -24,7 +24,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -88,8 +87,7 @@ func (a *akeylessBase) getAzureCloudIDFromServiceAccount(ctx context.Context, re
 
 	azureCloud := azureCloudSettingsFromEnv()
 	cred, err := azidentity.NewClientAssertionCredential(tenantID, clientID, getAssertion, &azidentity.ClientAssertionCredentialOptions{
-		// azidentity <= 1.14 nests the cloud in ClientOptions; upstream (azidentity 1.15) uses a flat field.
-		ClientOptions: azcore.ClientOptions{Cloud: azureCloud.cloud},
+		Cloud: azureCloud.cloud,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to create Azure client assertion credential: %w", err)

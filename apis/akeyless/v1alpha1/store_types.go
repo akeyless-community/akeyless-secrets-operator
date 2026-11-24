@@ -138,11 +138,11 @@ type AkeylessSecretStoreStatus struct {
 
 // AkeylessSecretStoreCondition describes store readiness.
 type AkeylessSecretStoreCondition struct {
-	Type               string             `json:"type"`
+	Type               string                 `json:"type"`
 	Status             corev1.ConditionStatus `json:"status"`
-	Reason             string             `json:"reason,omitempty"`
-	Message            string             `json:"message,omitempty"`
-	LastTransitionTime metav1.Time        `json:"lastTransitionTime,omitempty"`
+	Reason             string                 `json:"reason,omitempty"`
+	Message            string                 `json:"message,omitempty"`
+	LastTransitionTime metav1.Time            `json:"lastTransitionTime,omitempty"`
 }
 
 const (
