@@ -17,3 +17,10 @@ paths-ignore:
   - "test/**"
   - "e2e/**"
   - "**/*_test.go"
+  # Upstream providers that this fork does not register (see pkg/register/) and
+  # that are therefore never compiled into the operator image. Their go/weak-
+  # sensitive-data-hashing matches are SHA-256 cache keys, not password storage.
+  # Remove an entry here if the provider is ever added to pkg/register/.
+  - "providers/v1/yandex/**"
+  - "providers/v1/nebius/**"
+  - "providers/v1/infisical/**"
