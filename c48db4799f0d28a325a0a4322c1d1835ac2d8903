@@ -1,0 +1,1 @@
+Review fixes for sync PR #147 (reviewer: idanmantin). Lesson: when overwriting fork providers from upstream, diff the result against origin/main (not a local main ref) and grep removed lines for 'sensitive|do not|never' comments; they mark deliberate fork hardening. Also run make lint and make test, not only CI.
