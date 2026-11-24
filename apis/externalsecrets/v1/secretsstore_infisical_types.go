@@ -92,6 +92,10 @@ type KubernetesAuthCredentials struct {
 	IdentityID esmeta.SecretKeySelector `json:"identityId"`
 	// +optional
 	ServiceAccountTokenPath esmeta.SecretKeySelector `json:"serviceAccountTokenPath"`
+	// ServiceAccountRef authenticates as this ServiceAccount, using a token from the TokenRequest API.
+	// Takes precedence over serviceAccountTokenPath.
+	// +optional
+	ServiceAccountRef *esmeta.ServiceAccountSelector `json:"serviceAccountRef,omitempty"`
 }
 
 // AwsAuthCredentials represents the credentials for AWS authentication.
@@ -146,6 +150,10 @@ type MachineIdentityScopeInWorkspace struct {
 	// ProjectSlug is the required slug identifier for the project.
 	// +kubebuilder:validation:Required
 	ProjectSlug string `json:"projectSlug"`
+	// OrganizationSlug is the optional slug that identifies the organization that will be used
+	// during authentication. Useful for sub-organization setups
+	// +kubebuilder:validation:Optional
+	OrganizationSlug string `json:"organizationSlug"`
 	// ExpandSecretReferences indicates whether secret references should be expanded. Defaults to true if not provided.
 	// +kubebuilder:default=true
 	// +optional

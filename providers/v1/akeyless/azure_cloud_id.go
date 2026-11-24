@@ -88,6 +88,7 @@ func (a *akeylessBase) getAzureCloudIDFromServiceAccount(ctx context.Context, re
 
 	azureCloud := azureCloudSettingsFromEnv()
 	cred, err := azidentity.NewClientAssertionCredential(tenantID, clientID, getAssertion, &azidentity.ClientAssertionCredentialOptions{
+		// azidentity <= 1.14 nests the cloud in ClientOptions; upstream (azidentity 1.15) uses a flat field.
 		ClientOptions: azcore.ClientOptions{Cloud: azureCloud.cloud},
 	})
 	if err != nil {

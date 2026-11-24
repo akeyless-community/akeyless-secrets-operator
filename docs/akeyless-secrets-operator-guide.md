@@ -151,6 +151,21 @@ auth:
       namespace: my-app
 ```
 
+**OAuth2.0/JWT** — authenticate with an Akeyless OAuth2.0/JWT auth method (`access-type=jwt`). Provide exactly one of `secretRef` (a Secret key holding the JWT) or `serviceAccountRef` (a ServiceAccount token minted via the TokenRequest API). When `jwtAuth` is set, `secretRef` and `serviceAccountRef` on the `auth` block are ignored.
+
+```yaml
+auth:
+  jwtAuth:
+    accessID: "<oauth2-auth-method-access-id>"
+    serviceAccountRef:
+      name: my-sa
+      audiences:
+        - akeyless.io          # required; must match the auth method's audience
+    expirationSeconds: 600     # optional, minimum 600
+```
+
+`serviceAccountRef` needs `create` on `serviceaccounts/token`, which the Helm chart grants by default (`rbac.serviceAccountTokenCreate: true`). A complete example is in [examples/akeyless-secret-store-jwt.yaml](examples/akeyless-secret-store-jwt.yaml); the Akeyless-side setup is described in [provider/akeyless.md](provider/akeyless.md#authentication-with-oauth20jwt).
+
 **Azure Workload Identity** — use `serviceAccountRef` on the store auth block with an Azure AD access type in the credentials Secret.
 
 ### Example — SaaS store

@@ -18,10 +18,12 @@ package externalsecret
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 
 	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	esv1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1"
@@ -32,19 +34,47 @@ import (
 	_ "github.com/external-secrets/external-secrets/pkg/register" // Loading registered providers.
 )
 
+var (
+	errServiceAccountTokenSecret = errors.New("service-account-token Secret with service-account-name annotation is not allowed")
+	errBootstrapTokenSecret      = errors.New("bootstrap-token Secret is not allowed")
+)
+
+func validateSecretCandidate(secret *v1.Secret) error {
+	//nolint:exhaustive // Only the privileged Secret types require special handling.
+	switch secret.Type {
+	case v1.SecretTypeServiceAccountToken:
+		if _, ok := secret.Annotations[v1.ServiceAccountNameKey]; ok {
+			return errServiceAccountTokenSecret
+		}
+	case v1.SecretTypeBootstrapToken:
+		return errBootstrapTokenSecret
+	}
+
+	return nil
+}
+
 // ApplyTemplate merges templates in the following order:
 // * template.Data (highest precedence)
 // * template.TemplateFrom
 // * secret via es.data or es.dataFrom (if template.MergePolicy is Merge, or there is no template)
-// * existing secret keys (if CreationPolicy is Merge).
+// * existing secret keys (if CreationPolicy is Merge or CreateOrMerge).
 func (r *Reconciler) ApplyTemplate(ctx context.Context, es *esv1.ExternalSecret, secret *v1.Secret, dataMap map[string][]byte) error {
+	// the admission webhook rejects these templates already, but a cluster
+	// running with failurePolicy=Ignore or without the webhook must not render them either.
+	// this runs before any mutation, so a rejected template leaves the secret untouched.
+	if err := esv1.ValidateSecretTemplate(es.Spec.Target.Template); err != nil {
+		return err
+	}
+
 	// update metadata (labels, annotations, finalizers) of the secret
 	if err := setMetadata(secret, es); err != nil {
 		return err
 	}
 
-	// we only keep existing keys if creation policy is Merge, otherwise we clear the secret
-	if es.Spec.Target.CreationPolicy != esv1.CreatePolicyMerge {
+	// we only keep existing keys if creation policy is Merge or CreateOrMerge,
+	// otherwise we clear the secret
+	if es.Spec.Target.CreationPolicy != esv1.CreatePolicyMerge &&
+		es.Spec.Target.CreationPolicy != esv1.CreatePolicyCreateOrMerge {
 		secret.Data = make(map[string][]byte)
 	}
 
@@ -53,6 +83,10 @@ func (r *Reconciler) ApplyTemplate(ctx context.Context, es *esv1.ExternalSecret,
 		maps.Insert(secret.Data, maps.All(dataMap))
 		return nil
 	}
+
+	log := r.Log.WithValues("ExternalSecret", client.ObjectKeyFromObject(es))
+	log.V(1).Info("template render started")
+	defer log.V(1).Info("template render finished")
 
 	// set the secret type if it is defined in the template, otherwise keep the existing type
 	if es.Spec.Target.Template.Type != "" {

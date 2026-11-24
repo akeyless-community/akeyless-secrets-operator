@@ -31,6 +31,7 @@ import (
 	esv1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1"
 	genv1alpha1 "github.com/external-secrets/external-secrets/apis/generators/v1alpha1"
 	"github.com/external-secrets/external-secrets/pkg/controllers/secretstore"
+	"github.com/external-secrets/external-secrets/runtime/decoding"
 	"github.com/external-secrets/external-secrets/runtime/esutils"
 	"github.com/external-secrets/external-secrets/runtime/esutils/resolvers"
 	"github.com/external-secrets/external-secrets/runtime/statemanager"
@@ -134,7 +135,7 @@ func (r *Reconciler) handleSecretData(ctx context.Context, externalSecret *esv1.
 	}
 
 	// decode the secret if needed
-	secretData, err = esutils.Decode(secretRef.RemoteRef.DecodingStrategy, secretData)
+	secretData, err = decoding.Decode(secretRef.RemoteRef.DecodingStrategy, secretData)
 	if err != nil {
 		return fmt.Errorf(errDecode, secretRef.RemoteRef.DecodingStrategy, err)
 	}
@@ -167,6 +168,13 @@ func (r *Reconciler) handleGenerateSecrets(
 	impl, generatorResource, err := resolvers.GeneratorRef(ctx, r.Client, r.Scheme, namespace, remoteRef.SourceRef.GeneratorRef)
 	if err != nil {
 		return nil, err
+	}
+	unmanaged, err := shouldSkipGenerator(r, generatorResource)
+	if err != nil {
+		return nil, err
+	}
+	if unmanaged {
+		return nil, fmt.Errorf("can not reference unmanaged generator %q", remoteRef.SourceRef.GeneratorRef.Name)
 	}
 	var latestState *genv1alpha1.GeneratorState
 	if generatorState != nil {
@@ -247,7 +255,7 @@ func (r *Reconciler) handleExtractSecrets(
 	}
 
 	// decode the secrets if needed
-	secretMap, err = esutils.DecodeMap(remoteRef.Extract.DecodingStrategy, secretMap)
+	secretMap, err = decoding.DecodeMap(remoteRef.Extract.DecodingStrategy, secretMap)
 	if err != nil {
 		return nil, fmt.Errorf(errDecode, remoteRef.Extract.DecodingStrategy, err)
 	}
@@ -298,7 +306,7 @@ func (r *Reconciler) handleFindAllSecrets(
 	}
 
 	// decode the secrets if needed
-	secretMap, err = esutils.DecodeMap(remoteRef.Find.DecodingStrategy, secretMap)
+	secretMap, err = decoding.DecodeMap(remoteRef.Find.DecodingStrategy, secretMap)
 	if err != nil {
 		return nil, fmt.Errorf(errDecode, remoteRef.Find.DecodingStrategy, err)
 	}

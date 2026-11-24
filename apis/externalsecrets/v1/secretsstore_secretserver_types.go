@@ -19,11 +19,13 @@ package v1
 import esmeta "github.com/external-secrets/external-secrets/apis/meta/v1"
 
 // SecretServerProviderRef references a value that can be specified directly or via a secret
-// for a SecretServerProvider.
+// for a SecretServerProvider. Exactly one of Value or SecretRef must be set.
+// +kubebuilder:validation:XValidation:rule="has(self.value) != has(self.secretRef)",message="exactly one of value or secretRef must be set"
 type SecretServerProviderRef struct {
 
 	// Value can be specified directly to set a value without using a secret.
 	// +optional
+	// +kubebuilder:validation:MinLength=1
 	Value string `json:"value,omitempty"`
 
 	// SecretRef references a key in a secret that will be used as value.
@@ -33,14 +35,25 @@ type SecretServerProviderRef struct {
 
 // SecretServerProvider provides access to authenticate to a secrets provider server.
 // See: https://github.com/DelineaXPM/tss-sdk-go/blob/main/server/server.go.
+// Authentication requires either Token, or both Username and Password. If Token is
+// set it takes precedence and Username/Password are ignored.
+// +kubebuilder:validation:XValidation:rule="has(self.token) || (has(self.username) && has(self.password))",message="either token, or both username and password, must be set"
 type SecretServerProvider struct {
 	// Username is the secret server account username.
-	// +required
-	Username *SecretServerProviderRef `json:"username"`
+	// Required unless Token is set.
+	// +optional
+	Username *SecretServerProviderRef `json:"username,omitempty"`
 
 	// Password is the secret server account password.
-	// +required
-	Password *SecretServerProviderRef `json:"password"`
+	// Required unless Token is set.
+	// +optional
+	Password *SecretServerProviderRef `json:"password,omitempty"`
+
+	// Token is an access token used to authenticate to the secret server,
+	// as an alternative to Username and Password. When set, Username and
+	// Password are not required and are ignored.
+	// +optional
+	Token *SecretServerProviderRef `json:"token,omitempty"`
 
 	// Domain is the secret server domain.
 	// +optional
@@ -50,6 +63,18 @@ type SecretServerProvider struct {
 	// URL to your secret server installation
 	// +required
 	ServerURL string `json:"serverURL"`
+
+	// SiteID is the ID of the Secret Server site for new secrets.
+	// PushSecret metadata can override this value for one secret.
+	// The provider uses 1 if this field is not set.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	SiteID *int `json:"siteId,omitempty"`
+
+	// DisableSiteIDValidation permits a missing site ID for new secrets.
+	// The provider sends 0 if no site ID is set.
+	// +optional
+	DisableSiteIDValidation bool `json:"disableSiteIDValidation,omitempty"`
 
 	// PEM/base64 encoded CA bundle used to validate Secret ServerURL. Only used
 	// if the ServerURL URL is using HTTPS protocol. If not set the system root certificates

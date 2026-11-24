@@ -55,6 +55,7 @@ import (
 	esv1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1"
 	esv1alpha1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1alpha1"
 	esmeta "github.com/external-secrets/external-secrets/apis/meta/v1"
+	"github.com/external-secrets/external-secrets/runtime/decoding"
 	"github.com/external-secrets/external-secrets/runtime/esutils/resolvers"
 	estemplate "github.com/external-secrets/external-secrets/runtime/template/v2"
 )
@@ -201,10 +202,43 @@ func RewriteRegexp(operation esv1.ExternalSecretRewriteRegexp, in map[string][]b
 	if err != nil {
 		return nil, fmt.Errorf("regexp failed with failed to compile: %w", err)
 	}
+	budget := MaxRewrittenKeysBytes
 	for key, value := range in {
-		newKey := re.ReplaceAllString(key, operation.Target)
+		newKey, err := ReplaceKeyBounded(re, key, operation.Target, &budget)
+		if err != nil {
+			return nil, err
+		}
 		out[newKey] = value
 	}
+	return out, nil
+}
+
+// MaxRewrittenKeysBytes is the total size of the keys that one rewrite
+// operation may produce: the size limit of a Kubernetes Secret (1 MiB).
+const MaxRewrittenKeysBytes = corev1.MaxSecretSize
+
+// ReplaceKeyBounded is re.ReplaceAllString(key, target), refused when the
+// result could exceed what is left of budget. It takes the result out of budget.
+//
+// It refuses before building, from an upper bound of the result:
+//
+//	len(key)                    the parts of the key that no match covers
+//	(len(key)+1) * len(target)  the target's own text, once per match; a key of n
+//	                            bytes has at most n+1 matches (empty ones included)
+//	count("$") * len(key)       each "$" in the target copies a part of its match;
+//	                            matches do not overlap, so over all matches one "$"
+//	                            copies at most len(key) bytes
+//
+// It is arithmetic on lengths, not a parser for the replacement syntax. It
+// over-estimates, which is the safe direction.
+func ReplaceKeyBounded(re *regexp.Regexp, key, target string, budget *int) (string, error) {
+	// shortcut: the products assume a 64-bit int (amd64, arm64, ppc64le), use int64 if a 32-bit build is added.
+	worst := len(key) + (len(key)+1)*len(target) + strings.Count(target, "$")*len(key)
+	if worst > *budget {
+		return "", fmt.Errorf("regexp rewrite result may exceed %d bytes", MaxRewrittenKeysBytes)
+	}
+	out := re.ReplaceAllString(key, target)
+	*budget -= len(out)
 	return out, nil
 }
 
@@ -217,63 +251,19 @@ func RewriteTransform(operation esv1.ExternalSecretRewriteTransform, in map[stri
 		return nil, fmt.Errorf("transform failed with failed to parse template: %w", err)
 	}
 
+	budget := MaxRewrittenKeysBytes
 	for key, value := range in {
-		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, map[string]string{"value": key}); err != nil {
+		result, err := estemplate.ExecuteTemplate(tmpl, map[string]string{"value": key})
+		if err != nil {
 			return nil, fmt.Errorf("transform failed with failed to execute template for key %q: %w", key, err)
 		}
-		out[buf.String()] = value
+		if budget -= len(result); budget < 0 {
+			return nil, fmt.Errorf("transform rewrite result exceeds %d bytes", MaxRewrittenKeysBytes)
+		}
+		out[string(result)] = value
 	}
 
 	return out, nil
-}
-
-// DecodeMap decodes values from a secretMap.
-func DecodeMap(strategy esv1.ExternalSecretDecodingStrategy, in map[string][]byte) (map[string][]byte, error) {
-	out := make(map[string][]byte, len(in))
-	for k, v := range in {
-		val, err := Decode(strategy, v)
-		if err != nil {
-			return nil, fmt.Errorf("failure decoding key %v: %w", k, err)
-		}
-		out[k] = val
-	}
-	return out, nil
-}
-
-// Decode decodes the input byte slice according to the provided decoding strategy.
-func Decode(strategy esv1.ExternalSecretDecodingStrategy, in []byte) ([]byte, error) {
-	switch strategy {
-	case esv1.ExternalSecretDecodeBase64:
-		out, err := base64.StdEncoding.DecodeString(string(in))
-		if err != nil {
-			return nil, err
-		}
-		return out, nil
-	case esv1.ExternalSecretDecodeBase64URL:
-		out, err := base64.URLEncoding.DecodeString(string(in))
-		if err != nil {
-			return nil, err
-		}
-		return out, nil
-	case esv1.ExternalSecretDecodeNone:
-		return in, nil
-	// default when stored version is v1alpha1
-	case "":
-		return in, nil
-	case esv1.ExternalSecretDecodeAuto:
-		out, err := Decode(esv1.ExternalSecretDecodeBase64, in)
-		if err != nil {
-			out, err := Decode(esv1.ExternalSecretDecodeBase64URL, in)
-			if err != nil {
-				return Decode(esv1.ExternalSecretDecodeNone, in)
-			}
-			return out, nil
-		}
-		return out, nil
-	default:
-		return nil, fmt.Errorf("decoding strategy %v is not supported", strategy)
-	}
 }
 
 // ValidateKeys checks if the keys in the secret map are valid keys for a Kubernetes secret.
@@ -302,15 +292,9 @@ func ValidateKeys(log logr.Logger, in map[string][]byte) error {
 // ConvertKeys converts a secret map into a valid key.
 // Replaces any non-alphanumeric characters depending on convert strategy.
 func ConvertKeys(strategy esv1.ExternalSecretConversionStrategy, in map[string][]byte) (map[string][]byte, error) {
-	out := make(map[string][]byte, len(in))
-	for k, v := range in {
-		key := convert(strategy, k)
-		if _, exists := out[key]; exists {
-			return nil, fmt.Errorf("secret name collision during conversion: %s", key)
-		}
-		out[key] = v
-	}
-	return out, nil
+	return transformKeys(in, func(key string) string {
+		return convert(strategy, key)
+	})
 }
 
 func convert(strategy esv1.ExternalSecretConversionStrategy, str string) string {
@@ -323,7 +307,9 @@ func convert(strategy esv1.ExternalSecretConversionStrategy, str string) string 
 			rv != '.' &&
 			rv != '_' {
 			switch strategy {
-			case esv1.ExternalSecretConversionDefault:
+			// An empty strategy means the field was omitted, which the API
+			// documents as Default. Decode() folds "" in the same way.
+			case esv1.ExternalSecretConversionDefault, "":
 				newName[rk] = "_"
 			case esv1.ExternalSecretConversionUnicode:
 				newName[rk] = fmt.Sprintf("_U%04x_", rv)
@@ -340,9 +326,15 @@ func convert(strategy esv1.ExternalSecretConversionStrategy, str string) string 
 // ReverseKeys reverses a secret map into a valid key map as expected by push secrets.
 // Replaces the unicode encoded representation characters back to the actual unicode character depending on convert strategy.
 func ReverseKeys(strategy esv1alpha1.PushSecretConversionStrategy, in map[string][]byte) (map[string][]byte, error) {
+	return transformKeys(in, func(key string) string {
+		return reverse(strategy, key)
+	})
+}
+
+func transformKeys(in map[string][]byte, transform func(string) string) (map[string][]byte, error) {
 	out := make(map[string][]byte, len(in))
 	for k, v := range in {
-		key := reverse(strategy, k)
+		key := transform(k)
 		if _, exists := out[key]; exists {
 			return nil, fmt.Errorf("secret name collision during conversion: %s", key)
 		}
@@ -361,8 +353,7 @@ func reverse(strategy esv1alpha1.PushSecretConversionStrategy, str string) strin
 	case esv1alpha1.PushSecretConversionReverseUnicode:
 		matches := unicodeRegex.FindAllStringSubmatchIndex(str, -1)
 
-		for i := len(matches) - 1; i >= 0; i-- {
-			match := matches[i]
+		for _, match := range slices.Backward(matches) {
 			start := match[0]
 			end := match[1]
 			unicodeHex := str[match[2]:match[3]]
@@ -461,7 +452,7 @@ func IsNil(i any) bool {
 		return true
 	}
 	value := reflect.ValueOf(i)
-	if value.Type().Kind() == reflect.Ptr {
+	if value.Type().Kind() == reflect.Pointer {
 		return value.IsNil()
 	}
 	return false
@@ -575,13 +566,6 @@ func Deref[V any](v *V) V {
 		return res
 	}
 	return *v
-}
-
-// Ptr returns a pointer to the given value.
-//
-//go:fix inline
-func Ptr[T any](i T) *T {
-	return new(i)
 }
 
 // ConvertToType converts an object to the specified type using JSON marshaling.
@@ -799,7 +783,7 @@ func base64decode(cert []byte) ([]byte, error) {
 	}
 
 	// try decoding and test for validity again...
-	certificate, err := Decode(esv1.ExternalSecretDecodeAuto, cert)
+	certificate, err := decoding.Decode(esv1.ExternalSecretDecodeAuto, cert)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode base64: %w", err)
 	}

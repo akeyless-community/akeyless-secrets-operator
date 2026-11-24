@@ -1,6 +1,6 @@
 module github.com/external-secrets/external-secrets/providers/v1/akeyless
 
-go 1.26.5
+go 1.27.0
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.3
@@ -9,6 +9,7 @@ require (
 	github.com/akeylesslabs/akeyless-go/v4 v4.3.0
 	github.com/external-secrets/external-secrets/apis v0.0.0
 	github.com/external-secrets/external-secrets/runtime v0.0.0
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/stretchr/testify v1.12.1
 	github.com/tidwall/gjson v1.20.0
 	k8s.io/api v0.35.2

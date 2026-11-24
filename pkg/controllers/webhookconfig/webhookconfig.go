@@ -126,7 +126,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	err = r.updateConfig(logr.NewContext(ctx, log), &cfg)
 	if err != nil {
 		log.Error(err, "could not update webhook config")
-		r.recorder.Eventf(&cfg, v1.EventTypeWarning, ReasonUpdateFailed, err.Error())
+		r.recorder.Eventf(&cfg, v1.EventTypeWarning, ReasonUpdateFailed, "%s", err)
 		return ctrl.Result{
 			RequeueAfter: time.Minute,
 		}, err
@@ -183,7 +183,7 @@ func (r *Reconciler) updateConfig(ctx context.Context, cfg *admissionregistratio
 		Name:      r.SecretName,
 		Namespace: r.SecretNamespace,
 	}
-	err := r.Get(context.Background(), secretName, &secret)
+	err := r.Get(ctx, secretName, &secret)
 	if err != nil {
 		return err
 	}

@@ -38,6 +38,9 @@ jobs:
           cd providers/v1/akeyless
           go test ./... -race -count=1
 
+      - name: Test Akeyless adapter and sync packages
+        run: go test -tags "$PROVIDER" ./pkg/akeyless/... -count=1
+
       - name: Test Vault provider
         run: |
           make go-work
