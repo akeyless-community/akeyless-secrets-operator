@@ -26,7 +26,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,6 +35,7 @@ import (
 	esapi "github.com/external-secrets/external-secrets/apis/externalsecrets/v1"
 	esv1alpha1 "github.com/external-secrets/external-secrets/apis/externalsecrets/v1alpha1"
 	"github.com/external-secrets/external-secrets/pkg/controllers/secretstore/metrics"
+	ctrlutil "github.com/external-secrets/external-secrets/pkg/controllers/util"
 
 	// Load registered providers.
 	_ "github.com/external-secrets/external-secrets/pkg/register"
@@ -90,8 +90,12 @@ func reconcile(ctx context.Context, req ctrl.Request, ss esapi.GenericStore, cl 
 
 	requeueInterval := opts.RequeueInterval
 
-	if ss.GetSpec().RefreshInterval != 0 {
-		requeueInterval = time.Second * time.Duration(ss.GetSpec().RefreshInterval)
+	refreshInterval, refreshErr := ss.GetSpec().GetRefreshInterval()
+	if refreshErr != nil {
+		return ctrl.Result{}, fmt.Errorf("invalid refreshInterval: %w", refreshErr)
+	}
+	if refreshInterval > 0 {
+		requeueInterval = refreshInterval
 	}
 
 	// patch status when done processing
@@ -178,9 +182,15 @@ func validateStore(ctx context.Context, namespace, controllerClass string, store
 	}()
 	cl, err := mgr.GetFromStore(ctx, store, namespace)
 	if err != nil {
-		cond := NewSecretStoreCondition(esapi.SecretStoreReady, v1.ConditionFalse, esapi.ReasonInvalidProviderConfig, errUnableCreateClient)
+		// resolving the provider happens before any provider code runs, so that
+		// failure carries no remote payload and can be reported verbatim.
+		reason, msg := esapi.ReasonInvalidProviderConfig, errUnableCreateClient
+		if detail := ctrlutil.SafeMessage(err); detail != "" && errors.Is(err, ErrProviderResolution) {
+			reason, msg = esapi.ReasonProviderNotFound, detail
+		}
+		cond := NewSecretStoreCondition(esapi.SecretStoreReady, v1.ConditionFalse, reason, msg)
 		SetExternalSecretCondition(store, *cond, gaugeVecGetter)
-		recorder.Event(store, v1.EventTypeWarning, esapi.ReasonInvalidProviderConfig, err.Error())
+		recorder.Event(store, v1.EventTypeWarning, reason, msg)
 		return fmt.Errorf(errStoreClient, err)
 	}
 	validationResult, err := cl.Validate()
@@ -188,12 +198,12 @@ func validateStore(ctx context.Context, namespace, controllerClass string, store
 		if validationResult == esapi.ValidationResultUnknown {
 			cond := NewSecretStoreCondition(esapi.SecretStoreReady, v1.ConditionTrue, esapi.ReasonValidationUnknown, errValidationUnknownMsg)
 			SetExternalSecretCondition(store, *cond, gaugeVecGetter)
-			recorder.Event(store, v1.EventTypeWarning, esapi.ReasonValidationUnknown, err.Error())
+			recorder.Event(store, v1.EventTypeWarning, esapi.ReasonValidationUnknown, errValidationUnknownMsg)
 			return errValidationUnknown
 		}
 		cond := NewSecretStoreCondition(esapi.SecretStoreReady, v1.ConditionFalse, esapi.ReasonInvalidProviderConfig, errUnableValidateStore)
 		SetExternalSecretCondition(store, *cond, gaugeVecGetter)
-		recorder.Event(store, v1.EventTypeWarning, esapi.ReasonInvalidProviderConfig, err.Error())
+		recorder.Event(store, v1.EventTypeWarning, esapi.ReasonInvalidProviderConfig, errUnableValidateStore)
 		return fmt.Errorf(errValidationFailed, err)
 	}
 
@@ -364,9 +374,7 @@ func findStoresForPushSecret(ctx context.Context, c client.Client, obj client.Ob
 	for _, store := range stores {
 		if shouldReconcileSecretStoreForPushSecret(store, ps) {
 			req := ctrlreconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name: store.GetName(),
-				},
+				Name: store.GetName(),
 			}
 			if !isClusterScoped {
 				req.NamespacedName.Namespace = store.GetNamespace()

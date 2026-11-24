@@ -9,11 +9,20 @@ SecretStore resource specifies how to access Akeyless. This resource is namespac
 **NOTE:** Make sure the Akeyless provider is listed in the Kind=SecretStore.
 If you use a customer fragment, define the value of akeylessGWApiURL as the URL of your Akeyless Gateway in the following format: https://your.akeyless.gw:8080/v2.
 
-When using an Akeyless Gateway, you can set `ignoreCache: true` on the SecretStore to bypass the Gateway cache and fetch the latest secret value from Akeyless SaaS on every sync. This matches the `ignore_cache` option in the Akeyless Kubernetes Secrets Injector.
+For non-global SaaS tenants, set `akeylessGWApiURL` (or the `AKEYLESS_URL` environment variable on the operator, matching the Akeyless CLI) to the tenant URL, for example `https://vault.eu.akeyless.io` or `https://api.eu.akeyless.io`. Vault/UAM hosts are mapped to the matching `api.*` endpoint so authentication and secret fetches use the same tenant.
 
-For `azure_ad` authentication on AKS Workload Identity, set `authSecretRef.serviceAccountRef` to a ServiceAccount in the target namespace (annotated with `azure.workload.identity/client-id` and `azure.workload.identity/tenant-id`). The operator obtains a federated token from that ServiceAccount instead of using the ESO controller pod identity.
+When using an Akeyless Gateway, you can set `ignoreCache: true` on the SecretStore to bypass the Gateway cache and fetch the latest secret value from Akeyless SaaS on every sync. This matches the `ignore_cache` option in the Akeyless Kubernetes Secrets Injector. Use this only when you need fresh values on each reconcile: it increases load on the Gateway and upstream Akeyless API compared to serving cached responses.
 
-Akeyelss provide several Authentication Methods:
+**NOTE:** `ignoreCache` also disables ESO's in-process item-type cache (described below), so every sync looks up the item type. It does not disable token reuse. ESO still reuses the provider client between reconciles when the SecretStore spec is unchanged.
+
+ESO caches two things in memory for each provider client, which is created per SecretStore and namespace and replaced when the SecretStore spec changes:
+
+- **Akeyless token:** reused until the expiry returned by Akeyless authentication, minus 30 seconds. If no expiry is returned, the token is reused for about 4 minutes. If a request made with a cached token fails with HTTP 401 or 403, ESO discards the token and retries the request once with a fresh one.
+- **Item type** (static, dynamic, rotated or certificate): cached for 10 minutes, for up to 1024 items. If a read with a cached type fails, ESO looks up the item again in the same sync, so deleted items and items recreated as a different type are handled immediately.
+
+To set the operator-wide `AKEYLESS_URL` environment variable with the Helm chart, use `extraEnv`.
+
+Akeyless provides several Authentication Methods:
 
 ### Authentication with Kubernetes
 
@@ -29,28 +38,87 @@ Options for obtaining Kubernetes credentials include:
 {% include 'akeyless-secret-store-k8s-auth.yaml' %}
 ```
 
-**NOTE:** In case of a `ClusterSecretStore`, Be sure to provide `namespace` for `serviceAccountRef` and `secretRef` according to  the namespaces where the secrets reside.
+**NOTE:** In case of a `ClusterSecretStore`, be sure to provide `namespace` for `serviceAccountRef` and `secretRef` according to the namespaces where the secrets reside.
 
-### Authentication With Cloud-Identity or Api-Access-Key
+### Authentication with OAuth2.0/JWT
 
-Akeyless providers require an access-id, access-type and access-Type-param
-To set your SecretStore with an authentication method from Akeyless.
+Use an [Akeyless OAuth2.0/JWT](https://docs.akeyless.io/docs/auth-with-oauth-jwt) auth method. The provider calls Akeyless `Auth` with `access-type=jwt` and the bearer JWT.
+
+> **Akeyless Secrets Operator:** `AkeylessSecretStore` / `ClusterAkeylessSecretStore` expose the same options under `spec.auth.jwtAuth` (instead of `spec.provider.akeyless.authSecretRef.jwtAuth`). See [examples/akeyless-secret-store-jwt.yaml](../examples/akeyless-secret-store-jwt.yaml).
+
+Preferred SecretStore shape is `authSecretRef.jwtAuth`:
+
+```yaml
+{% include 'akeyless-secret-store-jwt-auth.yaml' %}
+```
+
+JWT material:
+
+```yaml
+{% include 'akeyless-credentials-jwt-secret.yaml' %}
+```
+
+`jwtAuth.serviceAccountRef` uses the TokenRequest API (`create` on `serviceaccounts/token`). The Helm chart grants this when `rbac.serviceAccountTokenCreate` is `true` (the default). `serviceAccountRef.audiences` is required and must match the audience configured on the Akeyless OAuth2.0/JWT auth method. This keeps the token from being scoped to the Kubernetes API server, so it cannot be replayed against the cluster API.
+
+When `jwtAuth` is set, it takes precedence: `authSecretRef.secretRef` and `authSecretRef.serviceAccountRef` are ignored, and ESO returns a warning if they are also set.
+
+#### Akeyless setup for ServiceAccount tokens
+
+For `serviceAccountRef`, the Akeyless auth method must trust your cluster's ServiceAccount token issuer:
+
+1. Export the cluster JWKS and note the issuer. Refresh the JWKS in Akeyless when the cluster signing keys rotate.
+
+    ```bash
+    kubectl get --raw /openid/v1/jwks > cluster-jwks.json
+    kubectl get --raw /.well-known/openid-configuration  # "issuer" field
+    ```
+
+2. Create an OAuth2.0/JWT auth method that trusts that JWKS, with `sub` as the unique identifier and the same audience you set in `serviceAccountRef.audiences`:
+
+    ```bash
+    akeyless auth-method create oauth2 \
+      --name /k8s/cluster-oidc \
+      --jwks-json-file ./cluster-jwks.json \
+      --issuer <issuer-from-openid-configuration> \
+      --unique-identifier sub \
+      --audience akeyless.io
+    ```
+
+    If the cluster JWKS is publicly reachable, you can use `--jwks-uri` instead of `--jwks-json-file`.
+
+3. Scope access per ServiceAccount with role associations on the `sub` claim:
+
+    ```bash
+    akeyless assoc-role-am --role-name <role> --am-name /k8s/cluster-oidc \
+      --sub-claims sub=system:serviceaccount:<namespace>:<serviceaccount>
+    ```
+
+Alternatively, store `accessType=jwt` and put the JWT in `accessTypeParam` via the generic credentials Secret below.
+
+### Authentication with Cloud-Identity or Api-Access-Key
+
+Akeyless providers require an access-id, access-type and access-type-param
+to set your SecretStore with an authentication method from Akeyless.
 
 The supported auth-methods and their parameters are:
 
-| accessType  | accessTypeParam                                                                                                                                                                                                                      |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `aws_iam` |   -                                                         |
-| `gcp` |      The gcp audience                                                      |
-| `azure_ad` |  azure object id  (optional)                                                          |
-| `api_key`      | The access key.                                                                                                                                     |
-| `k8s`         | The k8s configuration name |
+| accessType     | accessTypeParam                    |
+| -------------- | ---------------------------------- |
+| `aws_iam`      | -                                  |
+| `gcp`          | The GCP audience                   |
+| `azure_ad`     | Azure object ID (optional)         |
+| `api_key`      | The access key                     |
+| `access_key`   | The access key (alias for api_key) |
+| `k8s`          | The k8s configuration name         |
+| `jwt`          | The bearer JWT                     |
 
-For namespace-scoped Azure Workload Identity on AKS, set `authSecretRef.serviceAccountRef` to a ServiceAccount in the target namespace annotated with `azure.workload.identity/client-id` and `azure.workload.identity/tenant-id`:
+For `azure_ad` on AKS Workload Identity, set `authSecretRef.serviceAccountRef` to a ServiceAccount annotated with `azure.workload.identity/client-id` and `azure.workload.identity/tenant-id`. This field is only used when `accessType` is `azure_ad`; other access types ignore it.
 
 ```yaml
 {% include 'akeyless-secret-store-azure-ad-wi.yaml' %}
 ```
+
+For `ClusterSecretStore`, set `serviceAccountRef.namespace` when the ServiceAccount is not in the same namespace as the consuming `ExternalSecret`; otherwise the ServiceAccount is resolved from that namespace. Sovereign Azure clouds (US Government, China) are supported when `AZURE_ENVIRONMENT` or `AZURE_CLOUD` is set accordingly, matching the non-WI `GetCloudId` path.
 
 For more information see [Akeyless Authentication Methods](https://docs.akeyless.io/docs/access-and-authentication-methods)
 
@@ -59,15 +127,7 @@ For more information see [Akeyless Authentication Methods](https://docs.akeyless
 Create a secret containing your credentials using the following example as a guide:
 
 ```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: akeyless-secret-creds
-type: Opaque
-stringData:
-  accessId: "p-XXXX"
-  accessType:  # gcp/azure_ad/api_key/k8s/aws_iam
-  accessTypeParam:  # optional: can be one of the following: gcp-audience/azure-obj-id/access-key/k8s-conf-name
+{% include 'akeyless-credentials-secret.yaml' %}
 ```
 
 #### Create the Akeyless Secret Store Provider with the Credentials Secret
@@ -76,7 +136,7 @@ stringData:
 {% include 'akeyless-secret-store.yaml' %}
 ```
 
-**NOTE:** In case of a `ClusterSecretStore`, be sure to provide `namespace` for `accessID`, `accessType` and `accessTypeParam`  according to the namespaces where the secrets reside.
+**NOTE:** In case of a `ClusterSecretStore`, be sure to provide `namespace` for `accessID`, `accessType` and `accessTypeParam` according to the namespaces where the secrets reside.
 
 #### Create the Akeyless Secret Store With CAs for TLS handshake
 
@@ -94,13 +154,22 @@ spec:
       # Instead of caBundle you can also specify a caProvider
       # this will retrieve the cert from a Secret or ConfigMap
       caProvider:
-        type: "Secret/ConfigMap" # Can be Secret or ConfigMap
+        type: Secret  # Can be Secret or ConfigMap
         name: "<name of secret or configmap>"
         key: "<key inside secret>"
         # namespace is mandatory for ClusterSecretStore and not relevant for SecretStore
         namespace: "my-cert-secret-namespace"
   ....
 ```
+
+### Supported Secret Types
+
+The provider supports the following Akeyless item types:
+
+- **Static Secret** -- standard key/value secret
+- **Dynamic Secret** -- ephemeral credentials generated on demand
+- **Rotated Secret** -- automatically rotated credentials
+- **Certificate** -- TLS/SSH certificates
 
 ### Creating an external secret
 
@@ -110,10 +179,33 @@ To get a secret from Akeyless and create it as a secret on the Kubernetes cluste
 {% include 'akeyless-external-secret.yaml' %}
 ```
 
+#### Fetching a specific version
+
+Use `remoteRef.version` to pin a specific secret version (integer). Omit the field or set it to `0` to get the latest version.
+
+```yaml
+data:
+  - secretKey: password
+    remoteRef:
+      key: /path/to/secret
+      version: "3"  # fetch version 3 specifically
+```
+
+#### Extracting a property from a JSON secret
+
+If the secret value is a JSON object, use `remoteRef.property` to extract a single key. Nested keys can be addressed with dot notation; literal dots in key names are escaped with a backslash (`key\.with\.dots`).
+
+```yaml
+data:
+  - secretKey: db-password
+    remoteRef:
+      key: /path/to/json-secret
+      property: password  # extracts {"password": "..."} from the JSON value
+```
 
 #### Using DataFrom
 
-DataFrom can be used to get a secret as a JSON string and attempt to parse it.
+DataFrom can be used to get a secret as a JSON string and attempt to parse it, creating one Kubernetes secret key per JSON field.
 
 ```yaml
 {% include 'akeyless-external-secret-json.yaml' %}
@@ -141,6 +233,25 @@ The example above creates a Kubernetes secret with keys `username` and `password
 
 **Note:** `extract.property` requires the secret value to be valid JSON. It works reliably with **Static Secrets**. Dynamic and Rotated secrets may return provider-specific JSON envelopes; use `remoteRef.property` with `spec.data` for individual fields in those cases.
 
+#### Finding secrets by name or tag
+
+Use `dataFrom.find` to bulk-fetch secrets matching a name pattern or tag:
+
+```yaml
+# by name regex
+dataFrom:
+  - find:
+      path: /my/path/         # optional path prefix
+      name:
+        regexp: ".*db.*"
+
+# by tag
+dataFrom:
+  - find:
+      tags:
+        env: production
+```
+
 ### Getting the Kubernetes Secret
 
 The operator will fetch the secret and inject it as a `Kind=Secret`.
@@ -157,7 +268,9 @@ kubectl get secret database-credentials-json -o jsonpath='{.data}'
 
 To push a secret from Kubernetes cluster and create it as a secret to Akeyless, a `Kind=PushSecret` resource is needed.
 
+```yaml
 {% include 'akeyless-push-secret.yaml' %}
+```
 
 Then when you create a matching secret as follows:
 

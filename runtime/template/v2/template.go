@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	esapi "github.com/external-secrets/external-secrets/apis/externalsecrets/v1"
+	"github.com/external-secrets/external-secrets/runtime/decoding"
 	"github.com/external-secrets/external-secrets/runtime/feature"
 	"github.com/external-secrets/external-secrets/runtime/template/v2/sprig"
 )
@@ -74,11 +75,9 @@ func FuncMap() tpl.FuncMap {
 }
 
 const (
-	errParse                = "unable to parse template at key %s: %s"
-	errExecute              = "unable to execute template at key %s: %s"
-	errDecodePKCS12WithPass = "unable to decode pkcs12 with password: %s"
-	errDecodeCertWithPass   = "unable to decode pkcs12 certificate with password: %s"
-	errParsePrivKey         = "unable to parse private key type"
+	errParse        = "unable to parse template at key %s: %s"
+	errExecute      = "unable to execute template at key %s: %s"
+	errParsePrivKey = "unable to parse private key type"
 
 	pemTypeCertificate = "CERTIFICATE"
 	pemTypeKey         = "PRIVATE KEY"
@@ -145,11 +144,15 @@ func applyToTarget(k string, val []byte, target string, obj client.Object) error
 	return nil
 }
 
-func valueScopeApply(tplMap, data map[string][]byte, target string, secret client.Object) error {
+func valueScopeApply(tplMap, data map[string][]byte, target string, secret client.Object, decodingStrategy esapi.ExternalSecretDecodingStrategy) error {
 	for k, v := range tplMap {
 		val, err := execute(k, string(v), data)
 		if err != nil {
 			return fmt.Errorf(errExecute, k, err)
+		}
+		val, err = decoding.Decode(decodingStrategy, val)
+		if err != nil {
+			return fmt.Errorf("failed to decode rendered template value for key %s: %w", k, err)
 		}
 		if err := applyToTarget(k, val, target, secret); err != nil {
 			return fmt.Errorf("failed to apply to target: %w", err)
@@ -158,7 +161,7 @@ func valueScopeApply(tplMap, data map[string][]byte, target string, secret clien
 	return nil
 }
 
-func mapScopeApply(tpl string, data map[string][]byte, target string, secret client.Object) error {
+func mapScopeApply(tpl string, data map[string][]byte, target string, secret client.Object, decodingStrategy esapi.ExternalSecretDecodingStrategy) error {
 	val, err := execute(tpl, tpl, data)
 	if err != nil {
 		return fmt.Errorf(errExecute, tpl, err)
@@ -175,7 +178,11 @@ func mapScopeApply(tpl string, data map[string][]byte, target string, secret cli
 			return fmt.Errorf("could not unmarshal template to 'map[string][]byte': %w", err)
 		}
 		for k, val := range src {
-			if err := applyToTarget(k, []byte(val), target, secret); err != nil {
+			decodedVal, err := decoding.Decode(decodingStrategy, []byte(val))
+			if err != nil {
+				return fmt.Errorf("failed to decode rendered template value for key %s: %w", k, err)
+			}
+			if err := applyToTarget(k, decodedVal, target, secret); err != nil {
 				return fmt.Errorf("failed to apply to target: %w", err)
 			}
 		}
@@ -196,20 +203,20 @@ func mapScopeApply(tpl string, data map[string][]byte, target string, secret cli
 }
 
 // Execute renders the secret data as template. If an error occurs processing is stopped immediately.
-func Execute(tpl, data map[string][]byte, scope esapi.TemplateScope, target string, secret client.Object) error {
+func Execute(tpl, data map[string][]byte, scope esapi.TemplateScope, target string, secret client.Object, valueDecodingStrategy esapi.ExternalSecretDecodingStrategy) error {
 	if tpl == nil {
 		return nil
 	}
 	switch scope {
 	case esapi.TemplateScopeKeysAndValues:
 		for _, v := range tpl {
-			err := mapScopeApply(string(v), data, target, secret)
+			err := mapScopeApply(string(v), data, target, secret, valueDecodingStrategy)
 			if err != nil {
 				return err
 			}
 		}
 	case esapi.TemplateScopeValues:
-		err := valueScopeApply(tpl, data, target, secret)
+		err := valueScopeApply(tpl, data, target, secret, valueDecodingStrategy)
 		if err != nil {
 			return err
 		}
@@ -233,12 +240,31 @@ func execute(k, val string, data map[string][]byte) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf(errParse, k, err)
 	}
-	buf := bytes.NewBuffer(nil)
-	err = t.Execute(buf, strValData)
+	result, err := ExecuteTemplate(t, strValData)
 	if err != nil {
 		return nil, fmt.Errorf(errExecute, k, err)
 	}
-	return buf.Bytes(), nil
+	return result, nil
+}
+
+// ExecuteTemplate renders into a bounded buffer. The limit is per rendered value,
+// not per Secret; Kubernetes may impose a lower limit on the complete object.
+// shortcut: other template functions can still consume CPU or allocate before writing; sandbox execution for full tenant isolation.
+func ExecuteTemplate(t *tpl.Template, data any) ([]byte, error) {
+	buf := &limitedBuffer{}
+	if err := t.Execute(buf, data); err != nil {
+		return nil, err
+	}
+	return buf.data.Bytes(), nil
+}
+
+type limitedBuffer struct{ data bytes.Buffer }
+
+func (b *limitedBuffer) Write(p []byte) (int, error) {
+	if len(p) > sprig.MaxGeneratedBytes-b.data.Len() {
+		return 0, fmt.Errorf("template output exceeds %d bytes", sprig.MaxGeneratedBytes)
+	}
+	return b.data.Write(p)
 }
 
 // setData sets the data field of the object.
@@ -343,6 +369,15 @@ func applyAtPath(obj client.Object, target string, tokens []pathToken, leaf func
 
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(updatedMap, obj); err != nil {
 		return fmt.Errorf(errConvertingToObject, err)
+	}
+
+	// The unstructured roundtrip can leave either metadata map nil. Keep both
+	// writable for callers that add managed labels and annotations afterward.
+	if obj.GetLabels() == nil {
+		obj.SetLabels(make(map[string]string))
+	}
+	if obj.GetAnnotations() == nil {
+		obj.SetAnnotations(make(map[string]string))
 	}
 
 	return nil

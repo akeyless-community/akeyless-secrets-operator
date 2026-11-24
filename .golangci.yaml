@@ -16,7 +16,6 @@ linters:
     - exhaustive
     - copyloopvar
     - goheader
-    - goconst
     - gocritic
     - godot
     - goprintffuncname
@@ -35,9 +34,6 @@ linters:
     - whitespace
     - revive
   settings:
-    goconst:
-      min-len: 3
-      min-occurrences: 3
     gocritic:
       enabled-tags:
         - diagnostic
@@ -78,6 +74,12 @@ linters:
     modernize:
       disable:
         - omitzero
+        # Only active for modules with go >= 1.27; flags composite literals that spell out an embedded
+        # field. Pure style, and spread over many upstream test files we merge from external-secrets.
+        - embedlit
+        # Only active for modules with go >= 1.27; flags composite literals that spell out an embedded
+        # field. Pure style, and spread over many upstream test files we merge from external-secrets.
+        - embedlit
   exclusions:
     paths:
       - runtime/template/v2/sprig

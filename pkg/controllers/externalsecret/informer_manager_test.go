@@ -60,6 +60,19 @@ func (f *fakeInformer) HasSynced() bool {
 	return true
 }
 
+// NOTE: upstream also implements HasSyncedChecker() toolscache.DoneChecker here. That type only
+// exists in client-go >= 0.37; restore it when this module moves to k8s 0.37 / controller-runtime 0.25.
+
+func (f *fakeInformer) Name() string {
+	return "fakeInformer"
+}
+
+func (f *fakeInformer) Done() <-chan struct{} {
+	done := make(chan struct{})
+	close(done)
+	return done
+}
+
 func (f *fakeInformer) IsStopped() bool {
 	return false
 }

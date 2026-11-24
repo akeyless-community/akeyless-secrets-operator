@@ -86,6 +86,14 @@ func authFromSpec(auth akeylessv1alpha1.AkeylessAuth) *esv1.AkeylessAuth {
 			AccessTypeParam: auth.SecretRef.AccessTypeParam,
 		}
 	}
+	if auth.JWTAuth != nil {
+		out.JWTAuth = &esv1.AkeylessJWTAuth{
+			AccessID:          auth.JWTAuth.AccessID,
+			SecretRef:         auth.JWTAuth.SecretRef,
+			ServiceAccountRef: auth.JWTAuth.ServiceAccountRef,
+			ExpirationSeconds: auth.JWTAuth.ExpirationSeconds,
+		}
+	}
 	if auth.KubernetesAuth != nil {
 		out.KubernetesAuth = &esv1.AkeylessKubernetesAuth{
 			AccessID:          auth.KubernetesAuth.AccessID,

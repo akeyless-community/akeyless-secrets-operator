@@ -25,9 +25,11 @@ type RemoteVersionClient interface {
 
 // GetRemoteItemVersion returns the Akeyless last_version for an item path.
 func (a *Akeyless) GetRemoteItemVersion(ctx context.Context, itemName string) (int32, error) {
-	item, err := a.Client.DescribeItem(ctx, itemName)
-	if err != nil {
-		return 0, err
-	}
-	return item.GetLastVersion(), nil
+	return withToken(ctx, a, func(ctx context.Context) (int32, error) {
+		item, err := a.Client.DescribeItem(ctx, itemName)
+		if err != nil {
+			return 0, err
+		}
+		return item.GetLastVersion(), nil
+	})
 }
